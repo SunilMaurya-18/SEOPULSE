@@ -1,0 +1,6 @@
+export { MarketingHeader } from './components/MarketingHeader'
+export { HeroSection } from './components/HeroSection'
+export { HowItWorksSection } from './components/HowItWorksSection'
+export { CapabilitiesSection } from './components/CapabilitiesSection'
+export { FinalCtaSection } from './components/FinalCtaSection'
+export { MarketingFooter } from './components/MarketingFooter'
