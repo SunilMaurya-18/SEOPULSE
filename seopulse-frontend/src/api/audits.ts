@@ -30,17 +30,20 @@ export interface AuditSummary {
     infoCount: number
 }
 
+export type AuditPageStatus =
+    | 'QUEUED'
+    | 'CRAWLING'
+    | 'CRAWLED'
+    | 'REDIRECT'
+    | 'SKIPPED_ROBOTS'
+    | 'TOO_LARGE'
+    | 'FAILED'
+
 export interface AuditPage {
     id: number
     auditId: number
     url: string
-    status:
-        | 'QUEUED'
-        | 'CRAWLING'
-        | 'ANALYZING'
-        | 'COMPLETED'
-        | 'FAILED'
-        | string
+    status: AuditPageStatus
     statusCode: number | null
     contentType: string | null
     title: string | null
@@ -53,6 +56,9 @@ export interface AuditPage {
     internalLinkCount: number
     externalLinkCount: number
     depth: number
+    finalUrl: string | null
+    redirectChain: string[] | null
+    skipReason: string | null
     crawledAt: string | null
     createdAt: string
 }

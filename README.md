@@ -81,7 +81,7 @@ Default Compose credentials:
 | User | `seopulse` |
 | Password | `seopulse_dev_password` |
 
-> If you use local Postgres instead, align `application.properties` / env vars with your credentials.
+> If you use local Postgres instead, set `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`, or copy `application-local.yml.example` to `application-local.yml` (git-ignored) in `seopulse-backend/src/main/resources`.
 
 ### 2) Start backend API
 
@@ -130,6 +130,7 @@ Frontend defaults:
 |---|---|
 | `/` | Landing page |
 | `/terms` | Terms |
+| `/bot` | Public SEOPulseBot crawler information (linked from the user agent) |
 | `/login` | Sign in |
 | `/register` | Create account |
 | `/dashboard` | Overview / command center |
@@ -187,9 +188,10 @@ VITE_API_BASE_URL=http://localhost:8082/api/v1
 ### Backend
 
 Important settings live in:
-- `seopulse-backend/src/main/resources/application.yml`
-- `seopulse-backend/src/main/resources/application.properties` (local overrides / port)
-- `seopulse-backend/.env` (for secrets such as `JWT_SECRET`)
+- `seopulse-backend/src/main/resources/application.yml` (defaults, all overridable by environment variables)
+- `seopulse-backend/src/main/resources/application-local.yml` (optional, git-ignored personal overrides; see `application-local.yml.example`)
+
+The database schema is managed only by Flyway (`db/migration`); Hibernate runs with `ddl-auto: validate`. The `prod` profile refuses to start with a weak `JWT_SECRET`, the default `DB_PASSWORD`, missing/non-HTTPS `CORS_ALLOWED_ORIGINS`, a non-HTTPS `SEOPULSE_BOT_INFO_URL`, or `seopulse.crawler.allow-private-networks=true`.
 
 Common values:
 
@@ -198,8 +200,12 @@ Common values:
 | `server.port` | `8082` |
 | `DB_URL` | `jdbc:postgresql://localhost:5432/seopulse` |
 | `REDIS_HOST` / `REDIS_PORT` | `localhost` / `6379` |
-| `JWT_SECRET` | long random secret (required) |
+| `JWT_SECRET` | long random secret, at least 32 bytes (required) |
 | `JWT_EXPIRATION` | `3600000` (ms) |
+| `CORS_ALLOWED_ORIGINS` | comma-separated origins; defaults to `localhost:5173/5174` in `dev` only |
+| `SEOPULSE_BOT_INFO_URL` | public URL of the frontend `/bot` page, embedded in the crawler user agent (`https://` in prod) |
+
+Crawler limits and politeness (`seopulse.crawler.*` in `application.yml`): `max-pages`, `max-depth`, `concurrency`, `min-delay-ms`, `max-crawl-delay-ms`, `max-retries`, `max-duration-minutes`, `max-body-size-bytes`, `allowed-ports`, `respect-robots-txt` and `robots-cache-ttl-hours`.
 
 > Do not commit real production secrets. Prefer environment variables over hardcoding credentials.
 
@@ -218,7 +224,7 @@ npm run lint      # Oxlint
 
 ```bash
 mvn spring-boot:run
-mvn test
+mvn test       # integration tests use Testcontainers and are skipped if Docker is not running
 mvn package
 ```
 
@@ -228,7 +234,9 @@ mvn package
 - Protected UI routes wrap the app shell (`Sidebar` + `Topbar`) and auto-resolve the active project.
 - Dashboard keeps **overall workspace** metrics and a **website focus** mode for per-site inspection.
 - Audit report downloads are generated client-side from audit summary + pages + issues (HTML/JSON).
-- Backend crawler validates public HTTP(S) hosts and blocks unsafe/private network targets.
+- The backend crawler (`website/crawler`) uses Jetty `HttpClient` with a validating resolver. Every connection's resolved IPs are checked against private, reserved and embedded-IPv4 ranges, which also defeats DNS rebinding. Only ports 80 and 443 are allowed.
+- The crawler honours robots.txt (RFC 9309, cached in Redis for 24h) and seeds from sitemaps. It follows redirects hop by hop, treating `example.com` and `www.example.com` as one site, and spaces requests per host across concurrent virtual-thread workers. It backs off on 429/503 using `Retry-After`, and stops at a page and time budget.
+- Redirects, robots-blocked URLs, oversized responses and fetch failures are stored as page records (`REDIRECT`, `SKIPPED_ROBOTS`, `TOO_LARGE`, `FAILED`). Only `CRAWLED` pages are analyzed and scored.
 
 ## Troubleshooting
 

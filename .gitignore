@@ -1,0 +1,23 @@
+# Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+
+# Build output
+target/
+dist/
+dist-ssr/
+node_modules/
+
+# Logs
+*.log

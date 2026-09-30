@@ -1,7 +1,9 @@
 import {
   AlertCircle,
   AlertTriangle,
+  Ban,
   CheckCircle2,
+  CornerDownRight,
   Info,
   OctagonAlert,
 } from 'lucide-react'
@@ -10,8 +12,12 @@ import { Badge } from './Badge'
 type Status =
   | 'QUEUED'
   | 'CRAWLING'
+  | 'CRAWLED'
   | 'ANALYZING'
   | 'COMPLETED'
+  | 'REDIRECT'
+  | 'SKIPPED_ROBOTS'
+  | 'TOO_LARGE'
   | 'FAILED'
   | 'ACTIVE'
   | 'LIVE'
@@ -20,7 +26,30 @@ type Status =
 export function StatusBadge({ status }: { status: Status }) {
   const normalized = status.toUpperCase()
 
-  if (normalized === 'COMPLETED' || normalized === 'ACTIVE' || normalized === 'LIVE') {
+  if (normalized === 'REDIRECT') {
+    return (
+      <Badge variant="info">
+        <CornerDownRight className="h-3 w-3" aria-hidden />
+        Redirect
+      </Badge>
+    )
+  }
+
+  if (normalized === 'SKIPPED_ROBOTS') {
+    return (
+      <Badge variant="neutral">
+        <Ban className="h-3 w-3" aria-hidden />
+        Blocked by robots.txt
+      </Badge>
+    )
+  }
+
+  if (
+    normalized === 'COMPLETED' ||
+    normalized === 'CRAWLED' ||
+    normalized === 'ACTIVE' ||
+    normalized === 'LIVE'
+  ) {
     return (
       <Badge variant="success">
         <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden />

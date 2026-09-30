@@ -5,6 +5,7 @@ import { ProtectedRoute } from '@/routes/ProtectedRoute'
 
 import { LandingPage } from '@/pages/LandingPage'
 import { TermsPage } from '@/pages/TermsPage'
+import { BotPage } from '@/pages/BotPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -22,6 +23,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/terms" element={<TermsPage />} />
+      <Route path="/bot" element={<BotPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
 

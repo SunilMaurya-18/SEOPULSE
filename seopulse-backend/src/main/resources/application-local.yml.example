@@ -1,0 +1,11 @@
+# Copy to application-local.yml (git-ignored) for personal overrides.
+# Values here override the defaults in application.yml.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/seopulse
+    username: seopulse
+    password: change-me
+
+jwt:
+  secret: replace-with-a-random-string-of-at-least-32-characters

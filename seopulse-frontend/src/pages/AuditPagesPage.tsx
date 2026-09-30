@@ -100,6 +100,10 @@ export function AuditPagesPage() {
           stats.errors += 1
         }
 
+        if (auditPage.status !== 'CRAWLED') {
+          return stats
+        }
+
         if (auditPage.imagesWithoutAlt > 0) {
           stats.altIssues += 1
         }
@@ -260,9 +264,25 @@ function PageRow({
             >
               {auditPage.url}
             </a>
-            <p className="mt-1 truncate text-xs text-muted">
-              {auditPage.title || 'No title detected'}
-            </p>
+            {auditPage.finalUrl ? (
+              <p
+                className="mt-1 truncate font-mono text-[11px] text-muted"
+                title={auditPage.finalUrl}
+              >
+                → {auditPage.finalUrl}
+              </p>
+            ) : (
+              auditPage.status === 'CRAWLED' && (
+                <p className="mt-1 truncate text-xs text-muted">
+                  {auditPage.title || 'No title detected'}
+                </p>
+              )
+            )}
+            {auditPage.skipReason && (
+              <p className="mt-1 truncate text-xs text-warning" title={auditPage.skipReason}>
+                {auditPage.skipReason}
+              </p>
+            )}
           </div>
         </TD>
         <TD>
@@ -272,22 +292,26 @@ function PageRow({
           </div>
         </TD>
         <TD>
-          <div className="flex flex-wrap gap-1.5">
-            <SignalBadge
-              label={`H1 ${auditPage.h1Count}`}
-              problem={auditPage.h1Count !== 1}
-            />
-            <SignalBadge
-              label={`Images ${auditPage.imageCount}`}
-              problem={auditPage.imagesWithoutAlt > 0}
-            />
-            {auditPage.imagesWithoutAlt > 0 && (
+          {auditPage.status === 'CRAWLED' ? (
+            <div className="flex flex-wrap gap-1.5">
               <SignalBadge
-                label={`Alt ${auditPage.imagesWithoutAlt}`}
-                problem
+                label={`H1 ${auditPage.h1Count}`}
+                problem={auditPage.h1Count !== 1}
               />
-            )}
-          </div>
+              <SignalBadge
+                label={`Images ${auditPage.imageCount}`}
+                problem={auditPage.imagesWithoutAlt > 0}
+              />
+              {auditPage.imagesWithoutAlt > 0 && (
+                <SignalBadge
+                  label={`Alt ${auditPage.imagesWithoutAlt}`}
+                  problem
+                />
+              )}
+            </div>
+          ) : (
+            <span className="font-mono text-xs text-dim">Not analyzed</span>
+          )}
         </TD>
         <TD>
           <div className="font-mono text-xs text-muted font-tabular">
@@ -326,6 +350,10 @@ function PageRow({
 }
 
 function PageDetails({ auditPage }: { auditPage: AuditPage }) {
+  if (auditPage.status !== 'CRAWLED') {
+    return <CrawlOutcomeDetails auditPage={auditPage} />
+  }
+
   return (
     <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
       <DetailGroup
@@ -380,6 +408,54 @@ function PageDetails({ auditPage }: { auditPage: AuditPage }) {
           ['Created', formatDate(auditPage.createdAt)],
         ]}
       />
+    </div>
+  )
+}
+
+const OUTCOME_EXPLANATIONS: Partial<Record<AuditPage['status'], string>> = {
+  REDIRECT:
+    'This URL redirects. The destination is crawled as its own page when it belongs to the same site.',
+  SKIPPED_ROBOTS:
+    "The site's robots.txt disallows SEOPulseBot from this URL, so it was not requested.",
+  TOO_LARGE:
+    'The response exceeded the crawler size limit and was not analyzed.',
+  FAILED:
+    'The page could not be fetched (network error, timeout, or a blocked address).',
+}
+
+function CrawlOutcomeDetails({ auditPage }: { auditPage: AuditPage }) {
+  const chain = auditPage.redirectChain ?? []
+
+  return (
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <div>
+        <h3 className="font-mono text-[10px] font-medium tracking-wider text-dim uppercase">
+          Crawl outcome
+        </h3>
+        <p className="mt-3 text-sm text-main">
+          {OUTCOME_EXPLANATIONS[auditPage.status] ?? 'No details available.'}
+        </p>
+        {auditPage.skipReason && (
+          <p className="mt-2 text-sm text-warning">{auditPage.skipReason}</p>
+        )}
+      </div>
+      {chain.length > 0 && (
+        <div>
+          <h3 className="font-mono text-[10px] font-medium tracking-wider text-dim uppercase">
+            Redirect chain
+          </h3>
+          <ol className="mt-3 space-y-1.5">
+            {chain.map((hop, index) => (
+              <li
+                key={`${index}-${hop}`}
+                className="break-all font-mono text-xs text-main"
+              >
+                <span className="text-dim">{index + 1}.</span> {hop}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   )
 }

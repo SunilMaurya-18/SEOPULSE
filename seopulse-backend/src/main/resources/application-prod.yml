@@ -1,0 +1,23 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    com.seopulse: INFO
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+
+seopulse:
+  crawler:
+    max-pages: 1000
+    max-depth: 10
+  worker:
+    outbox-batch-size: 100

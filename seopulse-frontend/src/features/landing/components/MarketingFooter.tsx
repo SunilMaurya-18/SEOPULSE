@@ -21,6 +21,9 @@ export function MarketingFooter() {
           <Link to="/terms" className="hover:text-main">
             Terms
           </Link>
+          <Link to="/bot" className="hover:text-main">
+            Our crawler
+          </Link>
           <span>© {new Date().getFullYear()} SEOPulse</span>
         </div>
       </div>
