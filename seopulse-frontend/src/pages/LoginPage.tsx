@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { getErrorMessage } from '@/api/errors'
-import { Logo } from '@/components/brand/Logo'
+import { AuthShell, PendingWebsiteNotice } from '@/components/auth/AuthShell'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -64,45 +64,48 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <Logo className="justify-center" />
-          <h1 className="mt-6 font-display text-2xl font-semibold text-main">
-            Sign in
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            Access your SEO audit workspace.
-          </p>
-          {pendingFromQuery && (
-            <p className="mt-3 rounded border border-default bg-surface px-3 py-2 font-mono text-xs text-muted">
-              After sign-in we will connect{' '}
-              <span className="text-main">{pendingFromQuery}</span>
-            </p>
-          )}
-        </div>
+    <AuthShell
+      title="Welcome back"
+      description="Sign in to your SEO audit workspace."
+      notice={
+        pendingFromQuery && <PendingWebsiteNotice url={pendingFromQuery} action="After you sign in," />
+      }
+      footer={
+        <>
+          New to SEOPulse?{' '}
+          <Link
+            to={
+              pendingFromQuery
+                ? `/register?url=${encodeURIComponent(pendingFromQuery)}`
+                : '/register'
+            }
+            className="font-semibold text-accent hover:text-accent-hover"
+          >
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <Alert variant="error" title="Sign in failed">
+            {error}
+          </Alert>
+        )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-lg border border-default bg-surface p-5"
-        >
-          {error && (
-            <Alert variant="error" title="Sign in failed">
-              {error}
-            </Alert>
-          )}
+        <Input
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@company.com"
+          className="h-11"
+        />
 
-          <Input
-            id="email"
-            label="Email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
-          />
-
+        <div className="space-y-2">
           <Input
             id="password"
             label="Password"
@@ -111,37 +114,23 @@ export function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
+            placeholder="Your password"
+            className="h-11"
           />
-
           <div className="flex justify-end">
             <Link
               to="/forgot-password"
-              className="text-xs font-medium text-accent hover:text-accent-hover"
+              className="text-[13px] font-medium text-accent hover:text-accent-hover"
             >
               Forgot password?
             </Link>
           </div>
+        </div>
 
-          <Button type="submit" className="w-full" loading={loading}>
-            Sign in
-          </Button>
-        </form>
-
-        <p className="text-center text-sm text-muted">
-          No account?{' '}
-          <Link
-            to={
-              pendingFromQuery
-                ? `/register?url=${encodeURIComponent(pendingFromQuery)}`
-                : '/register'
-            }
-            className="font-medium text-accent hover:text-accent-hover"
-          >
-            Create one
-          </Link>
-        </p>
-      </div>
-    </div>
+        <Button type="submit" size="lg" className="w-full" loading={loading}>
+          Sign in
+        </Button>
+      </form>
+    </AuthShell>
   )
 }

@@ -1,6 +1,6 @@
 #!/bin/sh
 # shellcheck shell=busybox
-# Downloads, decrypts and restores a backup. See deploy/RESTORE.md.
+# Downloads, decrypts and restores a backup. See "Backups and restore" in the root README.md.
 #
 #   restore.sh list
 #   restore.sh <daily|weekly|monthly>/<file>|latest <target-database>

@@ -2,11 +2,12 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { getErrorMessage } from '@/api/errors'
-import { Logo } from '@/components/brand/Logo'
+import { AuthShell, PendingWebsiteNotice } from '@/components/auth/AuthShell'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useAuth } from '@/lib/auth'
+import { cn } from '@/lib/cn'
 import {
   peekPendingWebsiteUrl,
   setPendingWebsiteUrl,
@@ -45,13 +46,15 @@ export function RegisterPage() {
       if (pendingFromQuery) {
         setPendingWebsiteUrl(pendingFromQuery)
       }
-      await register(name.trim(), email.trim(), password)
+      const created = await register(name.trim(), email.trim(), password)
       pushToast({
         tone: 'success',
         title: 'Account created',
         description: pendingFromQuery
           ? 'Connecting your website…'
-          : 'Check your inbox for a link to verify your email.',
+          : created.emailVerificationRequired
+            ? 'Check your inbox for a link to verify your email.'
+            : 'Welcome to SEOPulse. Connect a website to run your first audit.',
       })
       navigate('/dashboard', { replace: true })
     } catch (err) {
@@ -61,56 +64,62 @@ export function RegisterPage() {
     }
   }
 
+  const strength = passwordStrength(password)
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <Logo className="justify-center" />
-          <h1 className="mt-6 font-display text-2xl font-semibold text-main">
-            Create account
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            Start auditing websites in minutes.
-          </p>
-          {pendingFromQuery && (
-            <p className="mt-3 rounded border border-default bg-surface px-3 py-2 font-mono text-xs text-muted">
-              After signup we will connect{' '}
-              <span className="text-main">{pendingFromQuery}</span>
-            </p>
-          )}
-        </div>
+    <AuthShell
+      title="Create your account"
+      description="Start auditing websites in minutes."
+      notice={
+        pendingFromQuery && <PendingWebsiteNotice url={pendingFromQuery} action="After you sign up," />
+      }
+      footer={
+        <>
+          Already have an account?{' '}
+          <Link
+            to={
+              pendingFromQuery
+                ? `/login?url=${encodeURIComponent(pendingFromQuery)}`
+                : '/login'
+            }
+            className="font-semibold text-accent hover:text-accent-hover"
+          >
+            Sign in
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <Alert variant="error" title="Registration failed">
+            {error}
+          </Alert>
+        )}
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4 rounded-lg border border-default bg-surface p-5"
-        >
-          {error && (
-            <Alert variant="error" title="Registration failed">
-              {error}
-            </Alert>
-          )}
+        <Input
+          id="name"
+          label="Name"
+          autoComplete="name"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+          className="h-11"
+        />
 
-          <Input
-            id="name"
-            label="Name"
-            autoComplete="name"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-          />
+        <Input
+          id="email"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@company.com"
+          className="h-11"
+        />
 
-          <Input
-            id="email"
-            label="Email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@company.com"
-          />
-
+        <div className="space-y-2">
           <Input
             id="password"
             label="Password"
@@ -122,28 +131,52 @@ export function RegisterPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="At least 10 characters"
-            hint="Minimum 10 characters. Passwords found in known data breaches are rejected."
+            aria-describedby="password-strength"
+            className="h-11"
           />
+          <div className="flex items-center gap-3">
+            <div className="flex flex-1 gap-1" aria-hidden="true">
+              {[1, 2, 3, 4].map((step) => (
+                <span
+                  key={step}
+                  className={cn(
+                    'h-1 flex-1 rounded-full transition-colors duration-300',
+                    strength && step <= strength.score ? strength.tone : 'bg-surface-high',
+                  )}
+                />
+              ))}
+            </div>
+            <span id="password-strength" aria-live="polite" className="text-[12px] font-medium text-muted">
+              {strength?.label ?? '10+ characters'}
+            </span>
+          </div>
+          <p className="text-[12px] text-dim">Passwords found in known data breaches are rejected.</p>
+        </div>
 
-          <Button type="submit" className="w-full" loading={loading}>
-            Create account
-          </Button>
-        </form>
+        <Button type="submit" size="lg" className="w-full" loading={loading}>
+          Create account
+        </Button>
 
-        <p className="text-center text-sm text-muted">
-          Already have an account?{' '}
-          <Link
-            to={
-              pendingFromQuery
-                ? `/login?url=${encodeURIComponent(pendingFromQuery)}`
-                : '/login'
-            }
-            className="font-medium text-accent hover:text-accent-hover"
-          >
-            Sign in
+        <p className="text-center text-[12px] text-dim">
+          By creating an account you agree to the{' '}
+          <Link to="/terms" className="font-medium text-muted underline-offset-2 hover:text-main hover:underline">
+            Terms
           </Link>
+          .
         </p>
-      </div>
-    </div>
+      </form>
+    </AuthShell>
   )
+}
+
+function passwordStrength(password: string) {
+  if (!password) return null
+  if (password.length < 10) {
+    const missing = 10 - password.length
+    return { score: 1, tone: 'bg-critical', label: `${missing} more character${missing === 1 ? '' : 's'}` }
+  }
+  const variety = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((rule) => rule.test(password)).length
+  if (password.length >= 14 && variety >= 3) return { score: 4, tone: 'bg-success', label: 'Strong' }
+  if (password.length >= 12 || variety >= 3) return { score: 3, tone: 'bg-info', label: 'Good' }
+  return { score: 2, tone: 'bg-warning', label: 'Fair' }
 }

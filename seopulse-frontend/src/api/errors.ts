@@ -13,7 +13,7 @@ export interface ApiProblem {
   errors?: Record<string, string>
 }
 
-export function getProblem(err: unknown): ApiProblem | null {
+function getProblem(err: unknown): ApiProblem | null {
   if (!axios.isAxiosError(err)) return null
   const data = err.response?.data
   return data && typeof data === 'object' ? (data as ApiProblem) : null
@@ -26,10 +26,6 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   const problem = getProblem(err)
   const firstFieldError = problem?.errors ? Object.values(problem.errors)[0] : undefined
   return firstFieldError || problem?.detail || fallback
-}
-
-export function getFieldErrors(err: unknown): Record<string, string> {
-  return getProblem(err)?.errors ?? {}
 }
 
 export function getErrorCode(err: unknown): string | undefined {

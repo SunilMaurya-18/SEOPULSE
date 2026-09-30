@@ -1,10 +1,4 @@
 spring:
-  jpa:
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
   data:
     redis:
       host: localhost
@@ -23,5 +17,3 @@ seopulse:
 logging:
   level:
     com.seopulse: DEBUG
-    org.springframework.web: DEBUG
-    org.springframework.security: DEBUG

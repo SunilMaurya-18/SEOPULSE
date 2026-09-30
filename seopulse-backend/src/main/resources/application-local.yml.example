@@ -1,24 +1,26 @@
 # Copy to application-local.yml (git-ignored) for personal overrides.
 # Values here override the defaults in application.yml.
 
+jwt:
+  # Any random string of at least 32 characters, e.g. `openssl rand -base64 48`.
+  secret: replace-with-a-random-string-of-at-least-32-characters
+
+# Matches seopulse-backend/docker-compose.yml; change it for a local Postgres.
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/seopulse
     username: seopulse
-    password: change-me
+    password: seopulse_dev_password
 
   # Real email delivery through Gmail. Create an app password at
   # https://myaccount.google.com/apppasswords (requires 2-Step Verification).
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: you@gmail.com
-    password: your-16-char-app-password
+  # mail:
+  #   host: smtp.gmail.com
+  #   port: 587
+  #   username: you@gmail.com
+  #   password: your-16-char-app-password
 
-seopulse:
-  email:
-    # Gmail only sends as the signed-in account.
-    from: "SEOPulse <you@gmail.com>"
-
-jwt:
-  secret: replace-with-a-random-string-of-at-least-32-characters
+# seopulse:
+#   email:
+#     # Gmail only sends as the signed-in account.
+#     from: "SEOPulse <you@gmail.com>"

@@ -1,7 +1,0 @@
-export { MarketingHeader } from './components/MarketingHeader'
-export { HeroSection } from './components/HeroSection'
-export { SolutionsSection } from './components/SolutionsSection'
-export { VisionSection } from './components/VisionSection'
-export { StatsSection } from './components/StatsSection'
-export { FinalCtaSection } from './components/FinalCtaSection'
-export { MarketingFooter } from './components/MarketingFooter'

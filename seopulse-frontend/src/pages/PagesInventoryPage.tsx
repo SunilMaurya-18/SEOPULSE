@@ -66,10 +66,7 @@ export function PagesInventoryPage() {
   }, [websiteId, projectId])
 
   useEffect(() => {
-    if (!auditId) {
-      setPages([])
-      return
-    }
+    if (!auditId) return
     async function loadPages() {
       try {
         setLoadingPages(true)
@@ -89,14 +86,15 @@ export function PagesInventoryPage() {
         setLoadingPages(false)
       }
     }
-    loadPages()
+    void loadPages()
   }, [auditId, page, projectId])
 
+  const auditPages = auditId ? pages : []
   const visible = query.trim()
-    ? pages.filter((p) =>
+    ? auditPages.filter((p) =>
         `${p.url} ${p.title ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()),
       )
-    : pages
+    : auditPages
 
   if (loading) return <PageSkeleton />
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CheckCircle2,
   FileStack,
@@ -39,7 +39,7 @@ export function AuditPagesPage() {
   const validAuditId =
     Number.isInteger(auditNumber) && auditNumber > 0
 
-  async function loadPages(targetPage = page) {
+  const loadPages = useCallback(async (targetPage: number) => {
     if (!validAuditId) {
       setError('Invalid audit ID.')
       setLoading(false)
@@ -67,12 +67,11 @@ export function AuditPagesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [validAuditId, auditNumber, projectId])
 
   useEffect(() => {
-    setPage(0)
     void loadPages(0)
-  }, [auditId, projectId])
+  }, [loadPages])
 
   const pageStats = useMemo(() => {
     return pages.reduce(

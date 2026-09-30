@@ -1,12 +1,4 @@
-import {
-  AlertCircle,
-  AlertTriangle,
-  Ban,
-  CheckCircle2,
-  CornerDownRight,
-  Info,
-  OctagonAlert,
-} from 'lucide-react'
+import { AlertTriangle, Ban, CornerDownRight, OctagonAlert } from 'lucide-react'
 import { Badge } from './Badge'
 
 type Status =
@@ -90,46 +82,6 @@ export function StatusBadge({ status }: { status: Status }) {
     <Badge variant="warning">
       <AlertTriangle className="h-3 w-3" aria-hidden />
       {formatStatus(normalized)}
-    </Badge>
-  )
-}
-
-type Severity = 'CRITICAL' | 'ERROR' | 'WARNING' | 'INFO' | 'PASSED' | string
-
-export function SeverityBadge({ severity }: { severity: Severity }) {
-  const normalized = severity.toUpperCase()
-
-  if (normalized === 'CRITICAL' || normalized === 'ERROR') {
-    return (
-      <Badge variant="critical">
-        <AlertCircle className="h-3 w-3" aria-hidden />
-        {normalized === 'CRITICAL' ? 'Critical' : 'Error'}
-      </Badge>
-    )
-  }
-
-  if (normalized === 'WARNING' || normalized === 'WARN') {
-    return (
-      <Badge variant="warning">
-        <AlertTriangle className="h-3 w-3" aria-hidden />
-        Warning
-      </Badge>
-    )
-  }
-
-  if (normalized === 'PASSED' || normalized === 'SUCCESS') {
-    return (
-      <Badge variant="success">
-        <CheckCircle2 className="h-3 w-3" aria-hidden />
-        Passed
-      </Badge>
-    )
-  }
-
-  return (
-    <Badge variant="info">
-      <Info className="h-3 w-3" aria-hidden />
-      Info
     </Badge>
   )
 }

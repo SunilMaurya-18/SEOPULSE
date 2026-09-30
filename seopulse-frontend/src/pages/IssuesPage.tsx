@@ -53,11 +53,7 @@ export function IssuesPage() {
   }, [projectId])
 
   useEffect(() => {
-    if (!websiteId) {
-      setAudits([])
-      setAuditId('')
-      return
-    }
+    if (!websiteId) return
     async function loadAudits() {
       try {
         const res = await auditApi.getAudits(projectId, Number(websiteId), 0, 20)
@@ -74,10 +70,7 @@ export function IssuesPage() {
   }, [websiteId, projectId])
 
   useEffect(() => {
-    if (!auditId) {
-      setIssues([])
-      return
-    }
+    if (!auditId) return
     async function loadIssues() {
       try {
         setLoadingIssues(true)
@@ -99,7 +92,7 @@ export function IssuesPage() {
     void loadIssues()
   }, [auditId, severity, projectId])
 
-  const filtered = issues.filter((issue) => {
+  const filtered = (auditId ? issues : []).filter((issue) => {
     if (!query.trim()) return true
     const q = query.toLowerCase()
     return (

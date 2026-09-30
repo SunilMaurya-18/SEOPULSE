@@ -49,6 +49,17 @@ async function resolveProject(): Promise<Project> {
   return created
 }
 
+// Concurrent callers (e.g. StrictMode's double effect) must share one lookup,
+// otherwise each sees an empty list and creates its own default workspace.
+let pendingProject: Promise<Project> | null = null
+
+function resolveProjectOnce(): Promise<Project> {
+  pendingProject ??= resolveProject().finally(() => {
+    pendingProject = null
+  })
+  return pendingProject
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
   const queryClient = useQueryClient()
@@ -61,7 +72,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setLoading(true)
     setError(null)
     try {
-      const next = await resolveProject()
+      const next = await resolveProjectOnce()
       setProject(next)
     } catch (err) {
       console.error(err)
@@ -77,13 +88,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     void queryClient.invalidateQueries({ queryKey: ['projects'] })
   }, [queryClient])
 
+  const [sessionActive, setSessionActive] = useState(isAuthenticated)
+  if (sessionActive !== isAuthenticated) {
+    setSessionActive(isAuthenticated)
+    setProject(null)
+    setError(null)
+    setLoading(true)
+  }
+
   useEffect(() => {
-    if (!isAuthenticated) {
-      setProject(null)
-      setLoading(false)
-      return
-    }
-    void refresh()
+    if (isAuthenticated) void refresh()
   }, [isAuthenticated, refresh])
 
   const value = useMemo(

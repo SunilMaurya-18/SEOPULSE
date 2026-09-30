@@ -22,7 +22,7 @@ interface AuthContextValue {
   status: AuthStatus
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string) => Promise<AuthUser>
   logout: () => Promise<void>
   logoutAll: () => Promise<void>
   markEmailVerified: () => void
@@ -77,7 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     async (name: string, email: string, password: string) => {
-      applySession(await authApi.register(name, email, password))
+      const session = await authApi.register(name, email, password)
+      applySession(session)
+      return toAuthUser(session)
     },
     [applySession],
   )

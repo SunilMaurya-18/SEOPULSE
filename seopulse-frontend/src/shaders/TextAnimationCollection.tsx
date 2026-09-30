@@ -1,6 +1,7 @@
 import { ThreeUIIntro } from "./neuform-isolated/NeuformIsolatedEffects";
 
 export { PredictiveArcCanvas } from "./predictive-arc/PredictiveArcCollection";
+export { AnimatedTopDock } from "./animated-top-dock/AnimatedTopDock";
 
 type TextAnimationVariant = "threeui-intro";
 type EffectMode = "light" | "dark";

@@ -50,10 +50,3 @@ export function scoreTone(score: number | null) {
   if (score >= 60) return 'text-warning'
   return 'text-critical'
 }
-
-export function scoreFill(score: number | null) {
-  if (score === null) return 'bg-surface-high'
-  if (score >= 80) return 'bg-success'
-  if (score >= 60) return 'bg-warning'
-  return 'bg-critical'
-}

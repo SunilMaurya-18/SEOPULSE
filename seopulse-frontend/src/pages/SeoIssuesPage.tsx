@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, RefreshCw } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -33,7 +33,7 @@ export function SeoIssuesPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
 
-  async function loadIssues(targetPage = page) {
+  const loadIssues = useCallback(async (targetPage: number) => {
     if (!auditId) {
       setError('Invalid audit ID.')
       setLoading(false)
@@ -69,12 +69,11 @@ export function SeoIssuesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [auditId, projectId, severity])
 
   useEffect(() => {
-    setPage(0)
     void loadIssues(0)
-  }, [auditId, severity, projectId])
+  }, [loadIssues])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -116,7 +115,7 @@ export function SeoIssuesPage() {
           variant="error"
           title="Failed to load issues"
           action={
-            <Button size="sm" variant="secondary" onClick={() => loadIssues()}>
+            <Button size="sm" variant="secondary" onClick={() => loadIssues(page)}>
               <RefreshCw className="h-3.5 w-3.5" />
               Retry
             </Button>
