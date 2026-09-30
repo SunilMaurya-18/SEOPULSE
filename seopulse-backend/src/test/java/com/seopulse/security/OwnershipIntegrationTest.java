@@ -19,7 +19,6 @@ import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -233,12 +232,5 @@ class OwnershipIntegrationTest extends AbstractIntegrationTest {
 
     private static String auditPath(long projectId, long auditId) {
         return "/api/v1/projects/" + projectId + "/audits/" + auditId;
-    }
-
-    private static MockHttpServletRequestBuilder authed(
-            MockHttpServletRequestBuilder request,
-            String token
-    ) {
-        return request.header("Authorization", "Bearer " + token);
     }
 }

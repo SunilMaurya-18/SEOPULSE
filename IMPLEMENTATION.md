@@ -242,46 +242,46 @@ No migration creates the `websites` table, and `V2__create_audits_table.sql` ref
 
 **2.1 Backend tests**
 
-- [ ] Add test dependencies: Testcontainers (`postgresql`, `redis` via `GenericContainer`), WireMock, AssertJ, and JaCoCo with a coverage report in `target/site/jacoco`.
-- [ ] Add a shared `AbstractIntegrationTest` base class that starts Postgres and Redis once per test run.
-- [ ] Unit tests for each class in `BE/website/seo/analyzer/` using small HTML fixtures under `src/test/resources/html/`.
-- [ ] Unit tests for `SeoScoreService`, `UrlNormalizer` and `UrlValidator`.
-- [ ] Integration tests for the full pipeline: create audit, outbox published, worker consumes, crawl a WireMock site, analysis, `COMPLETED` with a score.
-- [ ] Failure-path tests: a worker exception triggers a retry, `maxRetries` leads to `FAILED`, and a recovered pending message is reprocessed exactly once.
-- [ ] Controller tests with `@WebMvcTest` for validation errors, 401 responses and the ownership 404s from Phase 0.
+- [x] Add test dependencies: Testcontainers (`postgresql`, `redis` via `GenericContainer`), WireMock, AssertJ, and JaCoCo with a coverage report in `target/site/jacoco`. *(Test sites use the JDK `HttpServer` (`support/TestSite`) instead of WireMock, as in Phase 1.)*
+- [x] Add a shared `AbstractIntegrationTest` base class that starts Postgres and Redis once per test run. *(Plus `AbstractWorkerIntegrationTest` for the `worker` profile, and a capturing `EmailSender`.)*
+- [x] Unit tests for each class in `BE/website/seo/analyzer/` using small HTML fixtures under `src/test/resources/html/`. *(`SeoAnalyzersFixtureTest`, `SeoAnalyzerEdgeCasesTest`; the tests exposed null-handling bugs in five analyzers, which are now fixed.)*
+- [x] Unit tests for `SeoScoreService`, `UrlNormalizer` and `UrlValidator`. *(`UrlNormalizer` is covered in `SiteScopeTest`.)*
+- [x] Integration tests for the full pipeline: create audit, outbox published, worker consumes, crawl a WireMock site, analysis, `COMPLETED` with a score. *(`AuditPipelineIntegrationTest`, which also checks the SSE stream and cancellation.)*
+- [x] Failure-path tests: a worker exception triggers a retry, `maxRetries` leads to `FAILED`, and a recovered pending message is reprocessed exactly once. *(`AuditWorkerIntegrationTest`: retry then success, max retries, non-retryable target, timeout, duplicate delivery processed once, stuck-audit reaper.)*
+- [x] Controller tests with `@WebMvcTest` for validation errors, 401 responses and the ownership 404s from Phase 0. *(`AuditControllerWebMvcTest`; the cross-user 404s stay in `OwnershipIntegrationTest`.)*
 
 **2.2 Frontend tests and tooling**
 
-- [ ] Add Vitest, `@testing-library/react`, `@testing-library/user-event` and MSW (Mock Service Worker) for API mocking.
-- [ ] Component tests for `ProtectedRoute`, `OnboardingHandler`, `AddWebsiteModal` and `lib/auditReport.ts`.
-- [ ] Add Playwright with one smoke test against the Compose stack: register, add website, run audit, wait for `COMPLETED`, download the report.
-- [ ] Add `typecheck` and `test` scripts to `seopulse-frontend/package.json`.
+- [x] Add Vitest, `@testing-library/react`, `@testing-library/user-event` and MSW (Mock Service Worker) for API mocking.
+- [x] Component tests for `ProtectedRoute`, `OnboardingHandler`, `AddWebsiteModal` and `lib/auditReport.ts`. *(Also the refresh queue, the SSE client and parser, `useLiveAudit` and the error helpers.)*
+- [x] Add Playwright with one smoke test against the Compose stack: register, add website, run audit, wait for `COMPLETED`, download the report. *(`e2e/smoke.spec.ts`, also checks that the session survives a reload. Verified locally against the API + worker with Postgres and Redis containers; the Compose/CI wiring lands in Phase 3.)*
+- [x] Add `typecheck` and `test` scripts to `seopulse-frontend/package.json`. *(Plus `test:coverage` and `test:e2e`.)*
 
 **2.3 Split the worker from the API**
 
-- [ ] Add `@Profile("worker")` to `AuditWorkerScheduler` and `AuditOutboxPublisher`, and run the API with `SPRING_PROFILES_ACTIVE=prod,api` and the worker with `prod,worker`. Use `spring.main.web-application-type=none` for the worker, or run Actuator on a management port only.
-- [ ] Replace `CONSUMER_NAME = "worker-1"` in `BE/website/job/AuditWorker.java` with `hostname + "-" + UUID`, set at startup.
-- [ ] Process jobs on a bounded executor (`seopulse.worker.concurrency`) instead of the single `@Scheduled` thread, and use a blocking `XREADGROUP` with `BLOCK` instead of polling every second.
-- [ ] Enforce the per-audit time budget from Phase 1; on timeout mark the audit `FAILED` with a clear message.
-- [ ] Add `POST /api/v1/projects/{projectId}/audits/{auditId}/cancel`, which sets a `CANCELLED` status that the crawler checks between pages.
-- [ ] Make outbox publishing safe with several instances by using `SELECT ... FOR UPDATE SKIP LOCKED` in `AuditOutboxRepository`.
-- [ ] Clean up consumers that have been idle for a long time, using `XINFO CONSUMERS` and `XGROUP DELCONSUMER`.
+- [x] Add `@Profile("worker")` to `AuditWorkerScheduler` and `AuditOutboxPublisher`, and run the API with `SPRING_PROFILES_ACTIVE=prod,api` and the worker with `prod,worker`. Use `spring.main.web-application-type=none` for the worker, or run Actuator on a management port only. *(The API runs as plain `prod`; there is no separate `api` profile. `dev` includes `worker` through a profile group. Actuator is on `MANAGEMENT_PORT` in prod, and the stream runner `AuditWorkerRunner` is also worker-only.)*
+- [x] Replace `CONSUMER_NAME = "worker-1"` in `BE/website/job/AuditWorker.java` with `hostname + "-" + UUID`, set at startup.
+- [x] Process jobs on a bounded executor (`seopulse.worker.concurrency`) instead of the single `@Scheduled` thread, and use a blocking `XREADGROUP` with `BLOCK` instead of polling every second.
+- [x] Enforce the per-audit time budget from Phase 1; on timeout mark the audit `FAILED` with a clear message. *(`seopulse.worker.audit-timeout`, default 30 min, covering crawl + analysis.)*
+- [x] Add `POST /api/v1/projects/{projectId}/audits/{auditId}/cancel`, which sets a `CANCELLED` status that the crawler checks between pages. *(Every status change is conditional, so a worker never overwrites a cancellation. The worker polls status every 2 s and interrupts the pipeline.)*
+- [x] Make outbox publishing safe with several instances by using `SELECT ... FOR UPDATE SKIP LOCKED` in `AuditOutboxRepository`.
+- [x] Clean up consumers that have been idle for a long time, using `XINFO CONSUMERS` and `XGROUP DELCONSUMER`. *(Also: pending-message recovery via `XPENDING`/`XCLAIM`, and a reaper for audits stuck in an active state.)*
 
 **2.4 Authentication lifecycle**
 
-- [ ] Short-lived access tokens (15 minutes) plus rotating refresh tokens stored as SHA-256 hashes in `refresh_tokens`, delivered in an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`.
-- [ ] New endpoints: `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`.
-- [ ] Detect refresh-token reuse: if a rotated token is presented again, revoke the whole token family.
-- [ ] Email verification: add `users.email_verified_at` and a `POST /auth/verify-email` endpoint that accepts a single-use token. Unverified users can sign in but cannot start audits.
-- [ ] Password reset: `POST /auth/forgot-password` (always returns 202 so it doesn't reveal which emails exist) and `POST /auth/reset-password`.
-- [ ] Enforce a password policy (minimum 10 characters, checked against a breached-password list via the k-anonymity HIBP range API).
-- [ ] Frontend: move the access token from `localStorage` into memory, refresh silently from the Axios interceptor in `FE/api/axios.ts`, and queue requests made while a refresh is in flight.
-- [ ] Email delivery is stubbed here with a logging `EmailSender` implementation. Phase 4 plugs in the real provider.
+- [x] Short-lived access tokens (15 minutes) plus rotating refresh tokens stored as SHA-256 hashes in `refresh_tokens`, delivered in an `HttpOnly; Secure; SameSite=Strict` cookie scoped to `/api/v1/auth`. *(`/refresh` and `/logout` also require an `X-Requested-With` header as a CSRF guard. `Secure` is off only in `dev`, and prod refuses to start without it.)*
+- [x] New endpoints: `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`.
+- [x] Detect refresh-token reuse: if a rotated token is presented again, revoke the whole token family.
+- [x] Email verification: add `users.email_verified_at` and a `POST /auth/verify-email` endpoint that accepts a single-use token. Unverified users can sign in but cannot start audits. *(Plus `POST /auth/resend-verification`. `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION=false` relaxes the audit gate for smoke tests, and `AuthResponse.emailVerificationRequired` tells the UI whether to show the banner.)*
+- [x] Password reset: `POST /auth/forgot-password` (always returns 202 so it doesn't reveal which emails exist) and `POST /auth/reset-password`. *(A reset revokes all sessions and clears any lockout.)*
+- [x] Enforce a password policy (minimum 10 characters, checked against a breached-password list via the k-anonymity HIBP range API). *(Also a 72-byte bcrypt limit and no email local part. The HIBP check fails open.)*
+- [x] Frontend: move the access token from `localStorage` into memory, refresh silently from the Axios interceptor in `FE/api/axios.ts`, and queue requests made while a refresh is in flight. *(Single-flight `refreshSession()`, session bootstrap on load, new `/verify-email`, `/forgot-password` and `/reset-password` pages, a verification banner, sign out of all devices, and an audit cancel button.)*
+- [x] Email delivery is stubbed here with a logging `EmailSender` implementation. Phase 4 plugs in the real provider. *(Message bodies with links are logged only when `seopulse.email.log-content=true`, which is the `dev` setting and is rejected in prod.)*
 
 **2.5 Rate limiting and abuse protection**
 
-- [ ] Add Bucket4j with its Redis (Lettuce) backend, applied through a `OncePerRequestFilter`.
-- [ ] Limits:
+- [x] Add Bucket4j with its Redis (Lettuce) backend, applied through a `OncePerRequestFilter`. *(`RateLimitFilter` for register, audit creation and the general limit. Login and forgot-password are limited in the controller because the key includes the email. If Redis is down, requests are allowed through.)*
+- [x] Limits:
 
 | Endpoint | Key | Limit |
 |---|---|---|
@@ -291,24 +291,24 @@ No migration creates the `websites` table, and `V2__create_audits_table.sql` ref
 | `POST /projects/*/audits` | user | 10 per hour (replaced by plan limits in Phase 4) |
 | All other authenticated routes | user | 300 per minute |
 
-- [ ] Return 429 with `Retry-After` and `X-RateLimit-*` headers.
-- [ ] Lock out an account temporarily after 10 failed logins, and notify the user by email.
+- [x] Return 429 with `Retry-After` and `X-RateLimit-*` headers. *(A forgot-password request over the per-email limit still returns 202 but sends nothing.)*
+- [x] Lock out an account temporarily after 10 failed logins, and notify the user by email. *(15 minutes, `423` with `Retry-After`; the counter updates are atomic SQL.)*
 
 **2.6 Observability**
 
-- [ ] Structured JSON logs (`logstash-logback-encoder`) in the `prod` profile, with a `requestId` in the MDC (logging context) set by a filter and returned as an `X-Request-Id` header.
-- [ ] Also put `auditId`, `userId` and, after Phase 4, `orgId` into the MDC inside the worker.
-- [ ] Actuator: liveness and readiness groups, and `prometheus` via `micrometer-registry-prometheus` on the management port.
-- [ ] Custom metrics: `audits_started_total`, `audits_completed_total{status}`, `audit_duration_seconds`, `crawl_pages_total`, `outbox_lag_seconds`, `redis_stream_pending`.
-- [ ] Sentry: `sentry-spring-boot-starter` in the backend and `@sentry/react` with source maps in the frontend, with personal data scrubbed.
-- [ ] Standardize API errors on RFC 7807 `ProblemDetail` in `BE/common/exception/GlobalExceptionHandler.java`, including `requestId` in every error body.
+- [x] Structured JSON logs (`logstash-logback-encoder`) in the `prod` profile, with a `requestId` in the MDC (logging context) set by a filter and returned as an `X-Request-Id` header. *(A valid incoming `X-Request-Id` is reused; anything else is replaced.)*
+- [x] Also put `auditId`, `userId` and, after Phase 4, `orgId` into the MDC inside the worker. *(`orgId` waits for Phase 4.)*
+- [x] Actuator: liveness and readiness groups, and `prometheus` via `micrometer-registry-prometheus` on the management port. *(Readiness includes the DB and Redis.)*
+- [x] Custom metrics: `audits_started_total`, `audits_completed_total{status}`, `audit_duration_seconds`, `crawl_pages_total`, `outbox_lag_seconds`, `redis_stream_pending`. *(`crawl_pages_total` is tagged with `outcome`.)*
+- [x] Sentry: `sentry-spring-boot-starter` in the backend and `@sentry/react` with source maps in the frontend, with personal data scrubbed. *(Both are off without a DSN. The frontend turns off cookie, header, body and query-string collection, and source maps are uploaded and deleted only when `SENTRY_AUTH_TOKEN` is set at build time.)*
+- [x] Standardize API errors on RFC 7807 `ProblemDetail` in `BE/common/exception/GlobalExceptionHandler.java`, including `requestId` in every error body. *(Also the 401/403 responses written by Spring Security, plus machine-readable `code` values such as `EMAIL_NOT_VERIFIED`, `ACCOUNT_LOCKED` and `INVALID_TOKEN`. The frontend reads them through `api/errors.ts`.)*
 
 **2.7 Frontend architecture**
 
-- [ ] Add TanStack Query. Replace the hand-rolled polling in `FE/pages/AuditsPage.tsx`, `FE/pages/AuditDetailPage.tsx` and `FE/features/dashboard/Dashboard.tsx` with query hooks under `FE/api/queries/`.
-- [ ] Add a Server-Sent Events endpoint `GET /api/v1/projects/{projectId}/audits/{auditId}/events` fed by Redis pub/sub from the worker, with the frontend falling back to polling if the connection drops.
-- [ ] Add route-level `React.lazy` code splitting in `FE/routes/AppRoutes.tsx`, plus a top-level error boundary and per-route error elements.
-- [ ] Add a `.env.production.example` and fail the build if `VITE_API_BASE_URL` is missing in production mode.
+- [x] Add TanStack Query. Replace the hand-rolled polling in `FE/pages/AuditsPage.tsx`, `FE/pages/AuditDetailPage.tsx` and `FE/features/dashboard/Dashboard.tsx` with query hooks under `FE/api/queries/`. *(The other list pages still use their own fetching; `notifyDataChanged` also invalidates the query cache so both stay in sync.)*
+- [x] Add a Server-Sent Events endpoint `GET /api/v1/projects/{projectId}/audits/{auditId}/events` fed by Redis pub/sub from the worker, with the frontend falling back to polling if the connection drops. *(The client uses `fetch` so it can send the bearer token, and `useLiveAudit` writes events into the query cache.)*
+- [x] Add route-level `React.lazy` code splitting in `FE/routes/AppRoutes.tsx`, plus a top-level error boundary and per-route error elements. *(The app uses `<Routes>` rather than a data router, so per-route errors come from an `ErrorBoundary` in `AppLayout` that resets on navigation.)*
+- [x] Add a `.env.production.example` and fail the build if `VITE_API_BASE_URL` is missing in production mode.
 
 ### Schema / migrations
 
@@ -316,11 +316,11 @@ No migration creates the `websites` table, and `V2__create_audits_table.sql` ref
 
 ### Exit criteria
 
-- [ ] CI is green, with at least 60% line coverage on `website.seo`, `website.service`, `website.crawler` and `auth`.
-- [ ] Two worker containers process audits concurrently without double-processing, verified by an integration test.
-- [ ] A stolen, already-rotated refresh token revokes the session family.
-- [ ] Login returns 429 after the configured number of attempts.
-- [ ] A request ID links a frontend Sentry error to the backend log line.
+- [ ] CI is green, with at least 60% line coverage on `website.seo`, `website.service`, `website.crawler` and `auth`. *(Locally, `mvn verify` passes with 174 tests and the JaCoCo gate enforced. Phase 3 added `.github/workflows/ci.yml`, which runs the same gate; tick this once it is green on GitHub.)*
+- [x] Two worker containers process audits concurrently without double-processing, verified by an integration test. *(`AuditWorkerIntegrationTest.duplicateDeliveriesProcessTheAuditOnce`: two concurrent workers get the same audit, one completes and the other skips.)*
+- [x] A stolen, already-rotated refresh token revokes the session family. *(`AuthLifecycleIntegrationTest.refreshRotatesTokenAndDetectsReuse`.)*
+- [x] Login returns 429 after the configured number of attempts. *(`AuthLifecycleIntegrationTest.loginIsRateLimitedPerClient`.)*
+- [x] A request ID links a frontend Sentry error to the backend log line. *(API errors are reported with the `request_id` tag from `X-Request-Id`, which is the `requestId` in the backend's MDC and problem body. Checking this against a real Sentry project needs a DSN.)*
 
 ---
 
@@ -339,13 +339,13 @@ No migration creates the `websites` table, and `V2__create_audits_table.sql` ref
 
 **3.1 Container images**
 
-- [ ] `seopulse-backend/Dockerfile`: multi-stage build (Maven with a dependency cache, then Spring Boot layered jar extraction), `eclipse-temurin:25-jre` runtime, non-root user, `HEALTHCHECK` against Actuator liveness, and container-aware JVM flags (`-XX:MaxRAMPercentage=75`).
-- [ ] `seopulse-frontend/Dockerfile`: `node:22-alpine` build stage, then `nginx:alpine` serving `dist/` with SPA fallback, long-cache headers for hashed assets, and security headers.
-- [ ] `.dockerignore` files for both projects.
+- [x] `seopulse-backend/Dockerfile`: multi-stage build (Maven with a dependency cache, then Spring Boot layered jar extraction), `eclipse-temurin:25-jre` runtime, non-root user, `HEALTHCHECK` against Actuator liveness, and container-aware JVM flags (`-XX:MaxRAMPercentage=75`). *(Dependencies are a separate layer so the GitHub Actions layer cache reuses them. The image defaults to `prod`, and `prod` now turns off the startup banner so every log line is JSON.)*
+- [x] `seopulse-frontend/Dockerfile`: `node:22-alpine` build stage, then `nginx:alpine` serving `dist/` with SPA fallback, long-cache headers for hashed assets, and security headers. *(Uses `nginxinc/nginx-unprivileged:alpine` so nginx runs as a non-root user. `VITE_API_BASE_URL` defaults to the relative `/api/v1`, so one image serves staging and production. The Sentry token is a BuildKit secret. The inline theme script in `index.html` moved to `public/theme-init.js` so the CSP can forbid inline scripts.)*
+- [x] `.dockerignore` files for both projects. *(Plus a root `.gitattributes` that forces LF on scripts and container config, so a Windows checkout cannot break them.)*
 
 **3.2 Production Compose stack**
 
-- [ ] `deploy/docker-compose.prod.yml` with these services:
+- [x] `deploy/docker-compose.prod.yml` with these services: *(The API runs as `prod`, not `prod,api`, as decided in Phase 2. The worker scales with `WORKER_REPLICAS` in `.env` rather than `--scale`, so a redeploy keeps the count. Postgres and Redis are on an `internal` network, and the worker and backup reach the internet through a separate `egress` network. An optional `monitoring` profile adds Prometheus and Grafana.)*
 
 | Service | Image | Notes |
 |---|---|---|
@@ -357,42 +357,42 @@ No migration creates the `websites` table, and `V2__create_audits_table.sql` ref
 | `redis` | `redis:8` | AOF persistence, `requirepass`; not published to the host |
 | `backup` | small cron image | Nightly `pg_dump` upload |
 
-- [ ] `deploy/Caddyfile` with HSTS, compression, request size limits and a strict CSP for the frontend.
-- [ ] `deploy/.env.example` listing every variable: `DB_*`, `REDIS_*`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `SENTRY_DSN`, and, from Phase 4, `STRIPE_*` and `EMAIL_*`.
-- [ ] Resource limits (`deploy.resources.limits`) and `restart: unless-stopped` on every service.
-- [ ] Keep `seopulse-backend/docker-compose.yml` for local development only, and document the difference in the root `README.md`.
+- [x] `deploy/Caddyfile` with HSTS, compression, request size limits and a strict CSP for the frontend. *(API compression is limited to JSON so Server-Sent Events are not buffered. The access log drops the `token` query parameter from verify and reset links. The smoke test fails on any CSP violation.)*
+- [x] `deploy/.env.example` listing every variable: `DB_*`, `REDIS_*`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, `SENTRY_DSN`, and, from Phase 4, `STRIPE_*` and `EMAIL_*`. *(Required values use `${VAR:?}`, so Compose refuses to start with a missing secret.)*
+- [x] Resource limits (`deploy.resources.limits`) and `restart: unless-stopped` on every service.
+- [x] Keep `seopulse-backend/docker-compose.yml` for local development only, and document the difference in the root `README.md`. *(`deploy/docker-compose.ci.yml` also runs the production stack from source on `https://localhost`, with Caddy's internal CA and an S3 stand-in.)*
 
 **3.3 CI/CD with GitHub Actions**
 
-- [ ] `.github/workflows/ci.yml` runs on pull requests and on `main`: backend `mvn -B verify` with Testcontainers, frontend `npm ci && npm run lint && npm run typecheck && npm test && npm run build`, and Playwright smoke tests against a Compose stack.
-- [ ] `.github/workflows/deploy.yml` runs on `main` and on version tags: build and push both images to GHCR tagged with the commit SHA; deploy to staging automatically; deploy to production on a `v*` tag with a manual approval environment.
-- [ ] Deploy step over SSH with a dedicated deploy user and key: `docker compose pull && docker compose up -d --remove-orphans`, then poll the health endpoint and roll back to the previous image tag if it fails.
-- [ ] Flyway runs on API startup. Only the `api` service runs migrations (`spring.flyway.enabled=false` for `worker`).
-- [ ] Add `.github/dependabot.yml` for Maven, npm, Docker and Actions; enable CodeQL for Java and TypeScript; add Trivy image scanning with the build failing on critical vulnerabilities.
+- [x] `.github/workflows/ci.yml` runs on pull requests and on `main`: backend `mvn -B verify` with Testcontainers, frontend `npm ci && npm run lint && npm run typecheck && npm test && npm run build`, and Playwright smoke tests against a Compose stack. *(On `main` it runs as a reusable workflow called by `deploy.yml`, so it doesn't run twice. The smoke test goes through Caddy over HTTPS against the `prod` profile, followed by a backup and restore drill.)*
+- [x] `.github/workflows/deploy.yml` runs on `main` and on version tags: build and push both images to GHCR tagged with the commit SHA; deploy to staging automatically; deploy to production on a `v*` tag with a manual approval environment. *(Also builds the backup image. Deploys go through `deploy-env.yml`, and approval is a required reviewer on the `production` environment.)*
+- [x] Deploy step over SSH with a dedicated deploy user and key: `docker compose pull && docker compose up -d --remove-orphans`, then poll the health endpoint and roll back to the previous image tag if it fails. *(`deploy/scripts/deploy.sh` uses `up --wait` plus a request through Caddy, and supports `--rollback`. The SSH host key is pinned, and the server logs in to GHCR with the job's short-lived token. Verified locally against a throwaway registry: a normal deploy, a health-check failure, a missing tag and a manual rollback.)*
+- [x] Flyway runs on API startup. Only the `api` service runs migrations (`spring.flyway.enabled=false` for `worker`). *(Set as `SPRING_FLYWAY_ENABLED=false` on the worker service, because `dev` includes the `worker` profile and still needs to migrate.)*
+- [x] Add `.github/dependabot.yml` for Maven, npm, Docker and Actions; enable CodeQL for Java and TypeScript; add Trivy image scanning with the build failing on critical vulnerabilities. *(CodeQL uses buildless extraction with `security-extended` queries. Trivy fails only on critical vulnerabilities that have a fix available. Dependabot also covers the Compose file.)*
 
 **3.4 Backups and recovery**
 
-- [ ] Nightly `pg_dump -Fc` uploaded to S3-compatible storage (Backblaze B2, Cloudflare R2 or DigitalOcean Spaces), encrypted, keeping 7 daily, 4 weekly and 6 monthly copies.
-- [ ] Write `deploy/RESTORE.md` with step-by-step restore instructions, and run a restore drill into staging every month.
-- [ ] Enable the VPS provider's snapshot backups as a second layer.
+- [x] Nightly `pg_dump -Fc` uploaded to S3-compatible storage (Backblaze B2, Cloudflare R2 or DigitalOcean Spaces), encrypted, keeping 7 daily, 4 weekly and 6 monthly copies. *(`deploy/backup`: dumps are streamed through `age` to a public key, so the server can't decrypt old backups. An optional heartbeat URL acts as a dead-man switch.)*
+- [x] Write `deploy/RESTORE.md` with step-by-step restore instructions, and run a restore drill into staging every month. *(The monthly drill is a written procedure; CI runs a smaller drill on every pull request.)*
+- [x] Enable the VPS provider's snapshot backups as a second layer. *(A server setup step in `deploy/README.md`; it has to be switched on in the provider's console.)*
 
 **3.5 Host hardening**
 
-- [ ] UFW firewall allowing only 22, 80 and 443; SSH key-only login, no root login; `fail2ban`; unattended security upgrades.
-- [ ] Docker log rotation (`max-size`, `max-file`) so logs can't fill the disk.
-- [ ] Uptime monitoring (Better Stack or UptimeRobot) on `/api/v1/health` and the landing page, with alerts to email and Slack.
-- [ ] Optional: Grafana Cloud's free tier or a self-hosted Prometheus + Grafana container scraping the management port.
+- [x] UFW firewall allowing only 22, 80 and 443; SSH key-only login, no root login; `fail2ban`; unattended security upgrades. *(`deploy/scripts/bootstrap-host.sh`, which also installs Docker and creates the admin and deploy users.)*
+- [x] Docker log rotation (`max-size`, `max-file`) so logs can't fill the disk. *(Set both in the Docker daemon and on every Compose service.)*
+- [x] Uptime monitoring (Better Stack or UptimeRobot) on `/api/v1/health` and the landing page, with alerts to email and Slack. *(Documented in `deploy/README.md`; the monitors are created in the provider's dashboard.)*
+- [x] Optional: Grafana Cloud's free tier or a self-hosted Prometheus + Grafana container scraping the management port. *(The `monitoring` Compose profile. Both services bind to `127.0.0.1` and are reached through an SSH tunnel; worker replicas are found through DNS service discovery.)*
 
 **3.6 Scale-out path (documented, not built now)**
 
-- [ ] Note in the doc when to move off a single VPS: sustained CPU above 70%, worker queue lag above 10 minutes, or database size above 50 GB. The next steps are managed Postgres, managed Redis, and workers on a second VPS.
+- [x] Note in the doc when to move off a single VPS: sustained CPU above 70%, worker queue lag above 10 minutes, or database size above 50 GB. The next steps are managed Postgres, managed Redis, and workers on a second VPS. *(See "When to move off a single VPS" in `deploy/README.md`.)*
 
 ### Exit criteria
 
-- [ ] Merging to `main` deploys to `staging.<domain>` over HTTPS with no manual steps.
-- [ ] Tagging `v0.1.0` deploys to production after approval, and a failing health check rolls back automatically.
-- [ ] A restore from last night's backup into staging succeeds and the app boots against it.
-- [ ] `nmap` from outside shows only ports 22, 80 and 443 open.
+- [ ] Merging to `main` deploys to `staging.<domain>` over HTTPS with no manual steps. *(Needs the VPS, DNS and GitHub environments from `deploy/README.md`. Locally the same stack passes the smoke test through Caddy on HTTPS.)*
+- [ ] Tagging `v0.1.0` deploys to production after approval, and a failing health check rolls back automatically. *(The rollback in `deploy.sh` is verified locally; the tag-to-production run needs the servers.)*
+- [ ] A restore from last night's backup into staging succeeds and the app boots against it. *(The backup and restore scripts pass end to end locally and in CI; the staging drill waits for staging.)*
+- [ ] `nmap` from outside shows only ports 22, 80 and 443 open. *(Enforced by `bootstrap-host.sh` and the Compose file; check it once the server exists.)*
 
 ---
 

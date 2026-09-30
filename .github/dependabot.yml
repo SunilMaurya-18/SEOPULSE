@@ -1,0 +1,47 @@
+version: 2
+
+updates:
+  - package-ecosystem: maven
+    directory: /seopulse-backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      spring:
+        patterns: ["org.springframework*", "io.micrometer*"]
+      test:
+        patterns: ["org.testcontainers*", "org.junit*", "org.assertj*"]
+
+  - package-ecosystem: npm
+    directory: /seopulse-frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+      production:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /seopulse-backend
+      - /seopulse-frontend
+      - /deploy/backup
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

@@ -1,15 +1,28 @@
 import axios from './axios'
 
+export type AuditStatus =
+    | 'QUEUED'
+    | 'CRAWLING'
+    | 'ANALYZING'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'CANCELLED'
+
+const ACTIVE_AUDIT_STATUSES: ReadonlySet<AuditStatus> = new Set([
+    'QUEUED',
+    'CRAWLING',
+    'ANALYZING',
+])
+
+export function isActiveAudit(status: AuditStatus): boolean {
+    return ACTIVE_AUDIT_STATUSES.has(status)
+}
+
 export interface Audit {
     id: number
     websiteId: number
     websiteUrl: string
-    status:
-        | 'QUEUED'
-        | 'CRAWLING'
-        | 'ANALYZING'
-        | 'COMPLETED'
-        | 'FAILED'
+    status: AuditStatus
     score: number | null
     pagesCrawled: number
     pagesAnalyzed: number
@@ -129,6 +142,17 @@ export const auditApi = {
     ) => {
         const response = await axios.get<Audit>(
             `/projects/${projectId}/audits/${auditId}`,
+        )
+
+        return response.data
+    },
+
+    cancelAudit: async (
+        projectId: number,
+        auditId: number,
+    ) => {
+        const response = await axios.post<Audit>(
+            `/projects/${projectId}/audits/${auditId}/cancel`,
         )
 
         return response.data

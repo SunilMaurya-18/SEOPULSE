@@ -45,6 +45,16 @@ public class User {
     )
     private Role role;
 
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
+    @Builder.Default
+    @Column(name = "failed_login_count", nullable = false)
+    private int failedLoginCount = 0;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     @Column(
             name = "created_at",
             nullable = false,
@@ -71,5 +81,13 @@ public class User {
     protected void onUpdate() {
 
         updatedAt = Instant.now();
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
+    public boolean isLocked(Instant now) {
+        return lockedUntil != null && lockedUntil.isAfter(now);
     }
 }

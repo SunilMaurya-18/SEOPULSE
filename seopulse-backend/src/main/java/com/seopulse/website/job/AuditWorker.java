@@ -1,430 +1,297 @@
 package com.seopulse.website.job;
 
+import com.seopulse.common.metrics.AuditMetrics;
 import com.seopulse.website.entity.Audit;
 import com.seopulse.website.entity.AuditStatus;
+import com.seopulse.website.events.AuditEventPublisher;
+import com.seopulse.website.repository.AuditPageRepository;
 import com.seopulse.website.repository.AuditRepository;
+import com.seopulse.website.seo.repository.SeoIssueRepository;
 import com.seopulse.website.seo.service.AuditAnalysisService;
 import com.seopulse.website.service.AuditCrawlerService;
-import lombok.RequiredArgsConstructor;
+import com.seopulse.website.service.AuditStateChangedException;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.data.domain.Range;
-import org.springframework.data.redis.connection.stream.Consumer;
+import org.slf4j.MDC;
 import org.springframework.data.redis.connection.stream.MapRecord;
-import org.springframework.data.redis.connection.stream.ReadOffset;
-import org.springframework.data.redis.connection.stream.StreamOffset;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+/**
+ * Runs one audit through crawl and analysis. Safe to run on many worker
+ * processes at once: the QUEUED to CRAWLING claim is an atomic update, so
+ * a job delivered twice is processed once.
+ */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class AuditWorker {
 
-    private static final String CONSUMER_NAME = "worker-1";
+    public enum Result {
+        COMPLETED,
+        CANCELLED,
+        FAILED,
+        SKIPPED,
+        RETRY_SCHEDULED,
+        /** The retry could not be enqueued; keep the stream message pending. */
+        RETRY_PENDING
+    }
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    static final Set<AuditStatus> RUNNING = EnumSet.of(AuditStatus.CRAWLING, AuditStatus.ANALYZING);
+
     private final AuditRepository auditRepository;
+    private final AuditPageRepository auditPageRepository;
+    private final SeoIssueRepository seoIssueRepository;
     private final AuditQueue auditQueue;
     private final AuditCrawlerService auditCrawlerService;
     private final AuditAnalysisService auditAnalysisService;
-    private final WorkerProperties workerProperties;
+    private final WorkerProperties properties;
+    private final AuditMetrics metrics;
+    private final AuditEventPublisher events;
+    private final TransactionTemplate transactionTemplate;
 
-    /**
-     * Reads the next available audit job from Redis Stream
-     * and processes it.
-     */
-    public void processNextJob() {
+    private final ExecutorService pipelineExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
-        List<MapRecord<String, Object, Object>> records =
-                redisTemplate
-                        .opsForStream()
-                        .read(
-                                Consumer.from(
-                                        AuditQueue.CONSUMER_GROUP,
-                                        CONSUMER_NAME
-                                ),
-                                StreamOffset.create(
-                                        AuditQueue.STREAM_KEY,
-                                        ReadOffset.lastConsumed()
-                                )
-                        );
-
-        if (records == null || records.isEmpty()) {
-            return;
-        }
-
-        for (MapRecord<String, Object, Object> record : records) {
-            processRecord(record);
-        }
+    public AuditWorker(
+            AuditRepository auditRepository,
+            AuditPageRepository auditPageRepository,
+            SeoIssueRepository seoIssueRepository,
+            AuditQueue auditQueue,
+            AuditCrawlerService auditCrawlerService,
+            AuditAnalysisService auditAnalysisService,
+            WorkerProperties properties,
+            AuditMetrics metrics,
+            AuditEventPublisher events,
+            TransactionTemplate transactionTemplate
+    ) {
+        this.auditRepository = auditRepository;
+        this.auditPageRepository = auditPageRepository;
+        this.seoIssueRepository = seoIssueRepository;
+        this.auditQueue = auditQueue;
+        this.auditCrawlerService = auditCrawlerService;
+        this.auditAnalysisService = auditAnalysisService;
+        this.properties = properties;
+        this.metrics = metrics;
+        this.events = events;
+        this.transactionTemplate = transactionTemplate;
     }
 
-
     /**
-     * Processes one Redis Stream message.
+     * Handles one stream record.
+     *
+     * @return true when the record may be acknowledged
      */
-    private void processRecord(
-            MapRecord<String, Object, Object> record
-    ) {
+    public boolean handle(MapRecord<String, Object, Object> record) {
 
-        Object auditIdValue =
-                record.getValue().get("auditId");
-
-        /*
-         * Invalid message:
-         * There is no auditId.
-         */
-        if (auditIdValue == null) {
-
-            log.error(
-                    "Audit job does not contain auditId: recordId={}",
-                    record.getId()
-            );
-
-            acknowledge(record);
-            return;
-        }
-
-
+        Object value = record.getValue().get("auditId");
         Long auditId;
 
         try {
-
-            auditId =
-                    Long.parseLong(
-                            auditIdValue.toString()
-                    );
-
+            auditId = Long.parseLong(String.valueOf(value));
         } catch (NumberFormatException ex) {
-
-            log.error(
-                    "Invalid auditId: recordId={}, value={}",
-                    record.getId(),
-                    auditIdValue
-            );
-
-            acknowledge(record);
-            return;
+            log.error("Discarding audit job with invalid auditId: recordId={}, value={}", record.getId(), value);
+            return true;
         }
 
-
-        log.info(
-                "Processing audit job: auditId={}, recordId={}",
-                auditId,
-                record.getId()
-        );
-
-
-        /*
-         * Load audit from PostgreSQL.
-         */
-        Audit audit =
-                auditRepository
-                        .findByIdWithWebsite(auditId)
-                        .orElse(null);
-
-        if (audit == null) {
-
-            log.info(
-                    "Ignoring Redis audit job because audit was deleted: auditId={}",
-                    auditId
-            );
-
-            acknowledge(record);
-
-            return;
-        }
-
-        /*
-         * Idempotency protection.
-         *
-         * Only QUEUED audits should be processed.
-         *
-         * If the same Redis message is delivered again
-         * after the audit has already moved to CRAWLING,
-         * ANALYZING, COMPLETED or FAILED, we skip it.
-         */
-        if (audit.getStatus() != AuditStatus.QUEUED) {
-
-            log.warn(
-                    "Skipping audit {} because status is {}",
-                    auditId,
-                    audit.getStatus()
-            );
-
-            acknowledge(record);
-            return;
-        }
-
-
+        MDC.put("auditId", String.valueOf(auditId));
+        auditRepository.findOwnerIdById(auditId)
+                .ifPresent(userId -> MDC.put("userId", String.valueOf(userId)));
         try {
-
-            audit.setStatus(AuditStatus.CRAWLING);
-            audit.setStartedAt(Instant.now());
-
-            auditRepository.save(audit);
-
-            log.info(
-                    "Audit {} moved to CRAWLING",
-                    auditId
-            );
-
-            auditCrawlerService.crawlAudit(auditId);
-
-            auditAnalysisService.analyzeAudit(auditId);
-
-            acknowledge(record);
-
-        } catch (Exception ex) {
-
-            log.error(
-                    "Failed to process audit: auditId={}",
-                    auditId,
-                    ex
-            );
-
-
-            /*
-             * Try to retry the audit.
-             */
-            boolean handled =
-                    handleFailure(audit);
-
-
-            /*
-             * Only acknowledge the original message
-             * when the failure has been handled successfully.
-             *
-             * If retry enqueue failed, we DON'T acknowledge.
-             *
-             * Redis will keep the message in the
-             * Pending Entries List (PEL).
-             */
-            if (handled) {
-                acknowledge(record);
-            }
+            return process(auditId) != Result.RETRY_PENDING;
+        } finally {
+            MDC.remove("auditId");
+            MDC.remove("userId");
         }
     }
 
+    public Result process(Long auditId) {
+
+        Instant startedAt = Instant.now();
+
+        if (auditRepository.claim(auditId, AuditStatus.QUEUED, AuditStatus.CRAWLING, startedAt) == 0) {
+            log.info(
+                    "Skipping audit job: auditId={}, status={}",
+                    auditId,
+                    auditRepository.findStatusById(auditId).map(Enum::name).orElse("deleted")
+            );
+            return Result.SKIPPED;
+        }
+
+        log.info("Audit claimed: auditId={}", auditId);
+        metrics.auditStarted();
+        events.publish(auditId, AuditStatus.CRAWLING);
+
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
+        Future<?> pipeline = pipelineExecutor.submit(() -> {
+            if (mdc != null) {
+                MDC.setContextMap(mdc);
+            }
+            try {
+                auditCrawlerService.crawlAudit(auditId);
+                events.publish(auditId, AuditStatus.ANALYZING);
+                auditAnalysisService.analyzeAudit(auditId);
+                return null;
+            } finally {
+                MDC.clear();
+            }
+        });
+
+        Duration timeout = properties.getAuditTimeout();
+        long deadline = System.nanoTime() + timeout.toNanos();
+
+        try {
+            while (true) {
+                try {
+                    pipeline.get(properties.getCancellationPollMs(), TimeUnit.MILLISECONDS);
+                    return finished(auditId, Result.COMPLETED, AuditStatus.COMPLETED, startedAt);
+                } catch (TimeoutException ignored) {
+                    AuditStatus status = auditRepository.findStatusById(auditId).orElse(AuditStatus.CANCELLED);
+
+                    if (!RUNNING.contains(status)) {
+                        pipeline.cancel(true);
+                        log.info("Audit stopped while running: auditId={}, status={}", auditId, status);
+                        return finished(auditId, Result.CANCELLED, status, startedAt);
+                    }
+
+                    if (System.nanoTime() - deadline > 0) {
+                        pipeline.cancel(true);
+                        fail(auditId, "Audit exceeded the time limit of " + describe(timeout));
+                        log.warn("Audit timed out: auditId={}", auditId);
+                        return finished(auditId, Result.FAILED, AuditStatus.FAILED, startedAt);
+                    }
+                }
+            }
+        } catch (ExecutionException ex) {
+            return handleFailure(auditId, ex.getCause(), startedAt);
+        } catch (InterruptedException ex) {
+            // Worker shutdown: hand the audit to another worker without spending a retry.
+            pipeline.cancel(true);
+            Thread.currentThread().interrupt();
+            log.warn("Worker stopping; re-queueing audit {}", auditId);
+            int retryCount = auditRepository.findById(auditId).map(Audit::getRetryCount).orElse(0);
+            return requeue(auditId, retryCount, "Worker restarted; audit re-queued")
+                    ? Result.RETRY_SCHEDULED
+                    : Result.RETRY_PENDING;
+        }
+    }
 
     /**
-     * Handles an audit processing failure.
-     * <p>
-     * Returns:
-     * <p>
-     * true  -> failure was handled successfully
-     * false -> message should remain pending
+     * Retries or fails audits whose worker died without finishing them.
      */
-    private boolean handleFailure(Audit audit) {
+    public void reapStuckAudits() {
 
-        int retryCount =
-                audit.getRetryCount() + 1;
+        Instant cutoff = Instant.now()
+                .minus(properties.getAuditTimeout())
+                .minus(properties.getStuckAuditGrace());
 
-        audit.setRetryCount(retryCount);
+        for (Long auditId : auditRepository.findStuckIds(RUNNING, cutoff)) {
+            log.warn("Reaping stuck audit: auditId={}", auditId);
+            handleFailure(auditId, new IllegalStateException("The worker stopped before the audit finished"), null);
+        }
+    }
 
+    private Result handleFailure(Long auditId, Throwable cause, Instant startedAt) {
 
-        /*
-         * Maximum retry attempts reached.
-         */
-        if (retryCount >= audit.getMaxRetries()) {
+        if (cause instanceof AuditStateChangedException) {
+            AuditStatus status = auditRepository.findStatusById(auditId).orElse(AuditStatus.CANCELLED);
+            log.info("Audit changed state during processing: auditId={}, status={}", auditId, status);
+            return finished(auditId, Result.CANCELLED, status, startedAt);
+        }
 
-            audit.setStatus(AuditStatus.FAILED);
+        Audit audit = auditRepository.findById(auditId).orElse(null);
+        if (audit == null) {
+            return Result.SKIPPED;
+        }
 
-            audit.setCompletedAt(
-                    Instant.now()
-            );
+        String reason = describe(cause);
+        int attempt = audit.getRetryCount() + 1;
+        boolean retryable = !(cause instanceof IllegalArgumentException);
 
-            audit.setErrorMessage(
-                    "Audit processing failed after maximum retries"
-            );
+        if (!retryable || attempt >= audit.getMaxRetries()) {
+            log.error("Audit failed permanently: auditId={}, attempts={}", auditId, attempt, cause);
+            fail(auditId, retryable
+                    ? "Audit failed after " + attempt + " attempts: " + reason
+                    : reason);
+            return finished(auditId, Result.FAILED, AuditStatus.FAILED, startedAt);
+        }
 
-            auditRepository.save(audit);
+        log.warn("Audit attempt failed; retrying: auditId={}, attempt={}/{}", auditId, attempt, audit.getMaxRetries(), cause);
 
+        boolean enqueued = requeue(auditId, attempt, "Attempt " + attempt + " failed: " + reason + ". Retrying.");
+        events.publish(auditId, AuditStatus.QUEUED);
+        return enqueued ? Result.RETRY_SCHEDULED : Result.RETRY_PENDING;
+    }
 
-            log.error(
-                    "Audit {} permanently failed after {} retries",
-                    audit.getId(),
-                    retryCount
-            );
+    /**
+     * Returns the audit to QUEUED with a clean slate and enqueues a new job.
+     *
+     * @return false if the job could not be enqueued (the DB row is still
+     * QUEUED, so pending-message recovery will pick it up)
+     */
+    private boolean requeue(Long auditId, int retryCount, String message) {
 
+        Integer updated = transactionTemplate.execute(status -> {
+            int rows = auditRepository.requeue(auditId, RUNNING, AuditStatus.QUEUED, retryCount, truncate(message));
+            if (rows > 0) {
+                seoIssueRepository.deleteByAuditId(auditId);
+                auditPageRepository.deleteByAuditId(auditId);
+            }
+            return rows;
+        });
 
-            /*
-             * The failure has been permanently handled.
-             * Therefore the current Redis message can be ACKed.
-             */
+        if (updated == null || updated == 0) {
             return true;
         }
 
-
-        /*
-         * Retry is still available.
-         */
-        audit.setStatus(AuditStatus.QUEUED);
-
-        audit.setErrorMessage(
-                "Audit processing failed. Retry scheduled."
-        );
-
-        auditRepository.save(audit);
-
-
         try {
-
-            /*
-             * Put the audit back into the Redis Stream.
-             */
-            String recordId =
-                    auditQueue.enqueue(
-                            audit.getId()
-                    );
-
-
-            log.warn(
-                    "Audit {} retry scheduled: " +
-                            "attempt {}/{}, recordId={}",
-                    audit.getId(),
-                    retryCount,
-                    audit.getMaxRetries(),
-                    recordId
-            );
-
-
-            /*
-             * Retry message was successfully created.
-             */
+            auditQueue.enqueue(auditId);
             return true;
-
-        } catch (Exception ex) {
-
-            log.error(
-                    "Failed to enqueue retry for audit {}",
-                    audit.getId(),
-                    ex
-            );
-
-
-            /*
-             * IMPORTANT:
-             *
-             * Do NOT ACK the current message.
-             *
-             * It remains in Redis PEL and can be recovered
-             * by recoverPendingJobs().
-             */
+        } catch (RuntimeException ex) {
+            log.error("Failed to enqueue audit retry: auditId={}", auditId, ex);
             return false;
         }
     }
 
-
-    /**
-     * Acknowledges a successfully handled Redis message.
-     */
-    private void acknowledge(
-            MapRecord<String, Object, Object> record
-    ) {
-
-        redisTemplate
-                .opsForStream()
-                .acknowledge(
-                        AuditQueue.CONSUMER_GROUP,
-                        record
-                );
-
-
-        log.debug(
-                "Audit job acknowledged: recordId={}",
-                record.getId()
-        );
+    private void fail(Long auditId, String message) {
+        auditRepository.finish(auditId, RUNNING, AuditStatus.FAILED, Instant.now(), truncate(message));
     }
 
+    private Result finished(Long auditId, Result result, AuditStatus status, Instant startedAt) {
+        metrics.auditFinished(status.name(), startedAt == null ? null : Duration.between(startedAt, Instant.now()));
+        events.publish(auditId, status);
+        return result;
+    }
 
-    /**
-     * Recovers Redis Stream messages that have been
-     * pending for at least the configured interval.
-     * <p>
-     * This protects against worker crashes.
-     */
-    public void recoverPendingJobs() {
+    private static String describe(Throwable cause) {
+        String message = cause == null ? null : cause.getMessage();
+        return message == null || message.isBlank()
+                ? "Unexpected error while processing the audit"
+                : message;
+    }
 
-        var pendingMessages =
-                redisTemplate
-                        .opsForStream()
-                        .pending(
-                                AuditQueue.STREAM_KEY,
-                                AuditQueue.CONSUMER_GROUP,
-                                Range.unbounded(),
-                                workerProperties.getPendingRecoveryLimit(),
-                                Duration.ofMinutes(
-                                        workerProperties.getPendingRecoveryIntervalMinutes()
-                                )
-                        );
+    private static String describe(Duration duration) {
+        return duration.toMinutes() >= 1
+                ? duration.toMinutes() + " minutes"
+                : duration.toSeconds() + " seconds";
+    }
 
+    private static String truncate(String message) {
+        return message != null && message.length() > 1000 ? message.substring(0, 1000) : message;
+    }
 
-        if (pendingMessages == null
-                || pendingMessages.isEmpty()) {
-
-            return;
-        }
-
-
-        /*
-         * Iterate through pending messages.
-         */
-        for (var pendingMessage : pendingMessages) {
-
-            try {
-
-                /*
-                 * Transfer ownership of the pending
-                 * message to this worker.
-                 */
-                List<MapRecord<String, Object, Object>> claimedRecords =
-                        redisTemplate
-                                .opsForStream()
-                                .claim(
-                                        AuditQueue.STREAM_KEY,
-                                        AuditQueue.CONSUMER_GROUP,
-                                        CONSUMER_NAME,
-                                        Duration.ofMinutes(
-                                                workerProperties.getPendingRecoveryIntervalMinutes()
-                                        ),
-                                        pendingMessage.getId()
-                                );
-
-
-                if (claimedRecords == null
-                        || claimedRecords.isEmpty()) {
-
-                    continue;
-                }
-
-
-                for (MapRecord<String, Object, Object> record
-                        : claimedRecords) {
-
-                    log.warn(
-                            "Recovered pending audit job: " +
-                                    "recordId={}",
-                            record.getId()
-                    );
-
-
-                    processRecord(record);
-                }
-
-            } catch (Exception ex) {
-
-                log.error(
-                        "Failed to recover pending audit job: " +
-                                "recordId={}",
-                        pendingMessage.getId(),
-                        ex
-                );
-            }
-        }
+    @PreDestroy
+    void shutdown() {
+        pipelineExecutor.shutdownNow();
     }
 }

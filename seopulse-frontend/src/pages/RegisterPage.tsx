@@ -1,8 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { Activity } from 'lucide-react'
-import axios from 'axios'
 
+import { getErrorMessage } from '@/api/errors'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -50,19 +50,12 @@ export function RegisterPage() {
         tone: 'success',
         title: 'Account created',
         description: pendingFromQuery
-          ? 'Connecting your website and starting an audit…'
-          : 'Your workspace is ready.',
+          ? 'Connecting your website…'
+          : 'Check your inbox for a link to verify your email.',
       })
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(
-          err.response?.data?.message ??
-            'Unable to create account. Please try again.',
-        )
-      } else {
-        setError('Unable to create account. Please try again.')
-      }
+      setError(getErrorMessage(err, 'Unable to create account. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -131,11 +124,12 @@ export function RegisterPage() {
             type="password"
             autoComplete="new-password"
             required
-            minLength={8}
+            minLength={10}
+            maxLength={72}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            hint="Minimum 8 characters"
+            placeholder="At least 10 characters"
+            hint="Minimum 10 characters. Passwords found in known data breaches are rejected."
           />
 
           <Button type="submit" className="w-full" loading={loading}>

@@ -21,7 +21,11 @@ public class H1Analyzer implements SeoAnalyzer {
         List<SeoIssueResult> issues =
                 new ArrayList<>();
 
-        int h1Count = page.getH1Count();
+        Integer h1Count = page.getH1Count();
+
+        if (h1Count == null) {
+            return issues;
+        }
 
         if (h1Count == 0) {
 

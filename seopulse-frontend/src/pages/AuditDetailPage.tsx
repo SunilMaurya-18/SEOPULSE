@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import {
   AlertCircle,
   AlertTriangle,
@@ -7,14 +7,18 @@ import {
   FileText,
   Info,
   RefreshCw,
+  XCircle,
 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 
+import { isActiveAudit } from '@/api/audits'
+import { getErrorMessage } from '@/api/errors'
 import {
-  auditApi,
-  type Audit,
-  type AuditSummary,
-} from '@/api/audits'
+  useAuditSummary,
+  useCancelAudit,
+  useLiveAudit,
+} from '@/api/queries/audits'
+import { useToast } from '@/lib/toast'
 import { useWorkspace } from '@/lib/workspace'
 
 import { Alert } from '@/components/ui/Alert'
@@ -29,66 +33,45 @@ import { ScoreRing } from '@/components/ui/ScoreRing'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { cn } from '@/lib/cn'
 
-const ACTIVE_STATUSES = new Set(['QUEUED', 'CRAWLING', 'ANALYZING'])
-
 export function AuditDetailPage() {
   const { projectId } = useWorkspace()
-  const { auditId } = useParams<{ auditId: string }>()
+  const { pushToast } = useToast()
+  const params = useParams<{ auditId: string }>()
+  const auditId = Number(params.auditId)
+  const validId = Number.isInteger(auditId) && auditId > 0
 
-  const [audit, setAudit] = useState<Audit | null>(null)
-  const [summary, setSummary] = useState<AuditSummary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const auditQuery = useLiveAudit(projectId, auditId)
+  const summaryQuery = useAuditSummary(projectId, auditId)
+  const audit = auditQuery.data ?? null
+  const summary = summaryQuery.data ?? null
+  const isActive = audit ? isActiveAudit(audit.status) : false
 
-  async function loadAudit(silent = false) {
-    if (!auditId) {
-      setError('Invalid audit ID.')
-      setLoading(false)
-      return
-    }
+  const cancelAudit = useCancelAudit(projectId)
 
-    try {
-      if (!silent) setLoading(true)
-      setError(null)
-
-      const id = Number(auditId)
-      if (Number.isNaN(id)) {
-        setError('Invalid audit ID.')
-        return
-      }
-
-      const [auditResponse, summaryResponse] = await Promise.all([
-        auditApi.getAudit(projectId, id),
-        auditApi.getSummary(projectId, id).catch(() => null),
-      ])
-
-      setAudit(auditResponse)
-      if (summaryResponse) setSummary(summaryResponse)
-    } catch (err) {
-      console.error('Failed to load audit:', err)
-      setError('Unable to load this audit. Please try again.')
-    } finally {
-      if (!silent) setLoading(false)
-    }
+  function reload() {
+    void auditQuery.refetch()
+    void summaryQuery.refetch()
   }
 
-  useEffect(() => {
-    void loadAudit()
-  }, [auditId, projectId])
+  function handleCancel() {
+    cancelAudit.mutate(auditId, {
+      onSuccess: () =>
+        pushToast({ tone: 'info', title: 'Audit cancelled' }),
+      onError: (err) =>
+        pushToast({
+          tone: 'error',
+          title: 'Could not cancel audit',
+          description: getErrorMessage(err, 'Please try again.'),
+        }),
+    })
+  }
 
-  useEffect(() => {
-    if (!audit || !ACTIVE_STATUSES.has(audit.status)) return
+  if (validId && auditQuery.isPending) return <PageSkeleton />
 
-    const timer = window.setInterval(() => {
-      void loadAudit(true)
-    }, 3000)
-
-    return () => window.clearInterval(timer)
-  }, [audit?.status, auditId, projectId])
-
-  if (loading) return <PageSkeleton />
-
-  if (error || !audit) {
+  if (!validId || auditQuery.isError || !audit) {
+    const error = !validId
+      ? 'Invalid audit ID.'
+      : getErrorMessage(auditQuery.error, 'Unable to load this audit. Please try again.')
     return (
       <div className="space-y-6">
         <Link
@@ -100,11 +83,9 @@ export function AuditDetailPage() {
         </Link>
         <EmptyState
           title="Audit unavailable"
-          description={
-            error ?? 'The requested audit could not be found.'
-          }
+          description={error}
           action={
-            <Button onClick={() => void loadAudit()}>
+            <Button onClick={reload}>
               <RefreshCw className="h-4 w-4" />
               Try again
             </Button>
@@ -115,7 +96,6 @@ export function AuditDetailPage() {
   }
 
   const score = summary?.score ?? audit.score ?? null
-  const isActive = ACTIVE_STATUSES.has(audit.status)
   const errorCount = summary?.errorCount ?? 0
   const warningCount = summary?.warningCount ?? 0
   const infoCount = summary?.infoCount ?? 0
@@ -143,10 +123,21 @@ export function AuditDetailPage() {
               auditId={audit.id}
               disabled={isActive}
             />
+            {isActive && (
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={cancelAudit.isPending}
+                onClick={handleCancel}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Cancel audit
+              </Button>
+            )}
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => void loadAudit()}
+              onClick={reload}
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh

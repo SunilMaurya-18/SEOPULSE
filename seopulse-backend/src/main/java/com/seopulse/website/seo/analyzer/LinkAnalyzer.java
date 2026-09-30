@@ -21,7 +21,9 @@ public class LinkAnalyzer implements SeoAnalyzer {
         List<SeoIssueResult> issues =
                 new ArrayList<>();
 
-        if (page.getInternalLinkCount() == 0) {
+        Integer internalLinks = page.getInternalLinkCount();
+
+        if (internalLinks != null && internalLinks == 0) {
 
             issues.add(new SeoIssueResult(
                     "NO_INTERNAL_LINKS",

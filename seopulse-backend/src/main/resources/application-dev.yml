@@ -13,6 +13,12 @@ spring:
 seopulse:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174}
+  auth:
+    # Local dev runs over plain http.
+    refresh-cookie-secure: ${SEOPULSE_AUTH_REFRESH_COOKIE_SECURE:false}
+  email:
+    # Prints verification and reset links to the console.
+    log-content: true
 
 logging:
   level:

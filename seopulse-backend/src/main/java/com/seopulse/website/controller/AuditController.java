@@ -6,14 +6,18 @@ import com.seopulse.website.dto.AuditPageResponse;
 import com.seopulse.website.dto.AuditResponse;
 import com.seopulse.website.dto.AuditSummaryResponse;
 import com.seopulse.website.dto.SeoIssueResponse;
+import com.seopulse.website.events.AuditEventStreamService;
 import com.seopulse.website.service.AuditService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/api/v1/projects/{projectId}/audits")
@@ -22,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuditController {
 
     private final AuditService auditService;
+    private final AuditEventStreamService auditEventStreamService;
     private final CurrentUserService currentUserService;
 
     /**
@@ -88,6 +93,46 @@ public class AuditController {
                 auditService.getAudit(projectId, auditId, userId);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Cancel a queued or running audit.
+     *
+     * POST /api/v1/projects/{projectId}/audits/{auditId}/cancel
+     */
+    @PostMapping("/{auditId}/cancel")
+    public ResponseEntity<AuditResponse> cancelAudit(
+            @PathVariable Long projectId,
+            @PathVariable Long auditId,
+            Authentication authentication
+    ) {
+        Long userId = currentUserService.getUserId(authentication);
+
+        return ResponseEntity.ok(auditService.cancelAudit(projectId, auditId, userId));
+    }
+
+    /**
+     * Live audit status via Server-Sent Events. Sends the current state
+     * immediately, then every status change; closes at a final status.
+     *
+     * GET /api/v1/projects/{projectId}/audits/{auditId}/events
+     */
+    @GetMapping(value = "/{auditId}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamAuditEvents(
+            @PathVariable Long projectId,
+            @PathVariable Long auditId,
+            Authentication authentication,
+            HttpServletResponse response
+    ) {
+        Long userId = currentUserService.getUserId(authentication);
+
+        AuditResponse current = auditService.getAudit(projectId, auditId, userId);
+
+        // Stops nginx from buffering the stream.
+        response.setHeader("X-Accel-Buffering", "no");
+        response.setHeader("Cache-Control", "no-cache");
+
+        return auditEventStreamService.subscribe(current);
     }
 
     /**

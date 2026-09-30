@@ -1,22 +1,42 @@
+import { useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { getErrorMessage } from '@/api/errors'
 import { useAuth } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
+import { useToast } from '@/lib/toast'
 import { useWorkspace } from '@/lib/workspace'
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme()
-  const { user, logout } = useAuth()
+  const { user, logout, logoutAll } = useAuth()
   const { project } = useWorkspace()
   const navigate = useNavigate()
+  const { pushToast } = useToast()
+  const [signingOutAll, setSigningOutAll] = useState(false)
 
-  function handleLogout() {
-    logout()
+  async function handleLogout() {
+    await logout()
     navigate('/login', { replace: true })
+  }
+
+  async function handleLogoutAll() {
+    setSigningOutAll(true)
+    try {
+      await logoutAll()
+      navigate('/login', { replace: true })
+    } catch (err) {
+      pushToast({
+        tone: 'error',
+        title: 'Sign out failed',
+        description: getErrorMessage(err, 'Unable to sign out other sessions.'),
+      })
+      setSigningOutAll(false)
+    }
   }
 
   return (
@@ -39,9 +59,19 @@ export function SettingsPage() {
               {user?.email}
             </span>
           </div>
-          <Button variant="secondary" size="sm" onClick={handleLogout}>
-            Sign out
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" onClick={() => void handleLogout()}>
+              Sign out
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={signingOutAll}
+              onClick={() => void handleLogoutAll()}
+            >
+              Sign out of all devices
+            </Button>
+          </div>
         </div>
       </Card>
 

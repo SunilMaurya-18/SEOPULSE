@@ -5,5 +5,10 @@ public enum AuditStatus {
     CRAWLING,
     ANALYZING,
     COMPLETED,
-    FAILED
+    FAILED,
+    CANCELLED;
+
+    public boolean isActive() {
+        return this == QUEUED || this == CRAWLING || this == ANALYZING;
+    }
 }

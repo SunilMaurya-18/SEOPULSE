@@ -21,8 +21,12 @@ public class HttpStatusAnalyzer implements SeoAnalyzer {
         List<SeoIssueResult> issues =
                 new ArrayList<>();
 
-        int statusCode =
+        Integer statusCode =
                 page.getStatusCode();
+
+        if (statusCode == null) {
+            return issues;
+        }
 
         if (statusCode >= 400
                 && statusCode < 500) {

@@ -102,6 +102,30 @@ class StartupConfigValidatorTest {
                 .hasMessageContaining("SEOPULSE_BOT_INFO_URL");
     }
 
+    @Test
+    void rejectsInsecureAuthSettingsInProd() {
+
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("seopulse.auth.refresh-cookie-secure", "false")
+                .withProperty("seopulse.email.log-content", "true")
+                .withProperty("seopulse.auth.app-base-url", "http://localhost:5173");
+        environment.setActiveProfiles("prod");
+
+        StartupConfigValidator validator = new StartupConfigValidator(
+                environment,
+                STRONG_SECRET,
+                "prod-password",
+                List.of("https://app.seopulse.io"),
+                false,
+                "https://app.seopulse.io/bot"
+        );
+
+        assertThatThrownBy(validator::validate)
+                .hasMessageContaining("refresh-cookie-secure")
+                .hasMessageContaining("log-content")
+                .hasMessageContaining("SEOPULSE_APP_BASE_URL");
+    }
+
     private static StartupConfigValidator validator(
             String profile,
             String jwtSecret,

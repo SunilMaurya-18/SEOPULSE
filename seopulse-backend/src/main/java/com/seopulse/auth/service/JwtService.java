@@ -1,7 +1,7 @@
 package com.seopulse.auth.service;
 
+import com.seopulse.auth.config.AuthProperties;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -10,14 +10,13 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Service
 @RequiredArgsConstructor
 public class JwtService {
+
     private final JwtEncoder jwtEncoder;
-    @Value("${jwt.expiration:3600000}")
-    private long jwtExpiration;
+    private final AuthProperties authProperties;
 
     public String generateToken(Long userId, String email, String role) {
         Instant now = Instant.now();
@@ -26,24 +25,17 @@ public class JwtService {
                 .claim("email", email)
                 .claim("role", role)
                 .issuedAt(now)
-                .expiresAt(
-                        now.plus(
-                                jwtExpiration,
-                                ChronoUnit.MILLIS
-                        )
-                )
+                .expiresAt(now.plus(authProperties.getAccessTokenTtl()))
                 .build();
         JwsHeader header = JwsHeader
                 .with(MacAlgorithm.HS256)
                 .build();
         return jwtEncoder
-                .encode(
-                        JwtEncoderParameters.from(
-                                header,
-                                claims
-                        )
-                )
+                .encode(JwtEncoderParameters.from(header, claims))
                 .getTokenValue();
     }
 
+    public long accessTokenTtlSeconds() {
+        return authProperties.getAccessTokenTtl().toSeconds();
+    }
 }

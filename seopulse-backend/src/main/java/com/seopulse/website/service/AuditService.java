@@ -1,7 +1,11 @@
 package com.seopulse.website.service;
 
+import com.seopulse.auth.config.AuthProperties;
 import com.seopulse.common.dto.PageResponse;
 import com.seopulse.common.exception.DuplicateResourceException;
+import com.seopulse.common.exception.EmailNotVerifiedException;
+import com.seopulse.user.entity.User;
+import com.seopulse.user.repository.UserRepository;
 import com.seopulse.common.exception.InvalidStateException;
 import com.seopulse.common.exception.ResourceNotFoundException;
 import com.seopulse.project.service.ProjectAccessService;
@@ -9,6 +13,7 @@ import com.seopulse.website.dto.AuditPageResponse;
 import com.seopulse.website.dto.AuditResponse;
 import com.seopulse.website.dto.AuditSummaryResponse;
 import com.seopulse.website.dto.SeoIssueResponse;
+import com.seopulse.website.events.AuditEventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import com.seopulse.website.repository.AuditOutboxRepository;
 import com.seopulse.website.entity.Audit;
@@ -26,8 +31,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -35,12 +44,18 @@ import java.util.List;
 @Slf4j
 public class AuditService {
 
+    private static final List<AuditStatus> ACTIVE_STATUSES =
+            List.of(AuditStatus.QUEUED, AuditStatus.CRAWLING, AuditStatus.ANALYZING);
+
     private final AuditRepository auditRepository;
+    private final AuditEventPublisher auditEventPublisher;
     private final AuditPageRepository auditPageRepository;
     private final AuditOutboxRepository auditOutboxRepository;
     private final SeoIssueRepository seoIssueRepository;
     private final ProjectAccessService projectAccessService;
     private final UrlValidator urlValidator;
+    private final UserRepository userRepository;
+    private final AuthProperties authProperties;
 
 
     // ============================================================
@@ -61,6 +76,16 @@ public class AuditService {
                 );
 
 
+        if (authProperties.isRequireEmailVerification()) {
+            boolean verified = userRepository.findById(userId)
+                    .map(User::isEmailVerified)
+                    .orElse(false);
+            if (!verified) {
+                throw new EmailNotVerifiedException();
+            }
+        }
+
+
         if (website.getStatus() != WebsiteStatus.ACTIVE) {
 
             throw new InvalidStateException(
@@ -78,11 +103,7 @@ public class AuditService {
                 auditRepository
                         .existsByWebsiteIdAndStatusIn(
                                 websiteId,
-                                List.of(
-                                        AuditStatus.QUEUED,
-                                        AuditStatus.CRAWLING,
-                                        AuditStatus.ANALYZING
-                                )
+                                ACTIVE_STATUSES
                         );
 
 
@@ -131,6 +152,63 @@ public class AuditService {
         );
 
         return mapToResponse(savedAudit);
+    }
+
+
+    // ============================================================
+    // CANCEL AUDIT
+    // ============================================================
+
+    /**
+     * Cancels a queued or running audit. A running worker notices within
+     * a few seconds and stops; its later status updates are conditional,
+     * so they cannot overwrite CANCELLED.
+     */
+    public AuditResponse cancelAudit(
+            Long projectId,
+            Long auditId,
+            Long userId
+    ) {
+
+        Audit audit = projectAccessService.requireOwnedAudit(projectId, auditId, userId);
+
+        if (!audit.getStatus().isActive()) {
+            throw new InvalidStateException("Only queued or running audits can be cancelled");
+        }
+
+        int updated = auditRepository.finish(
+                auditId,
+                ACTIVE_STATUSES,
+                AuditStatus.CANCELLED,
+                Instant.now(),
+                "Cancelled by user"
+        );
+
+        if (updated == 0) {
+            throw new InvalidStateException("Only queued or running audits can be cancelled");
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                auditEventPublisher.publish(auditId, AuditStatus.CANCELLED);
+            }
+        });
+
+        log.info("Audit cancelled: auditId={}, projectId={}", auditId, projectId);
+
+        return auditRepository.findByIdWithWebsite(auditId)
+                .map(this::mapToResponse)
+                .orElseThrow(() -> new ResourceNotFoundException("Audit not found"));
+    }
+
+
+    /**
+     * For server-side push after ownership was already checked.
+     */
+    @Transactional(readOnly = true)
+    public Optional<AuditResponse> findAudit(Long auditId) {
+        return auditRepository.findByIdWithWebsite(auditId).map(this::mapToResponse);
     }
 
 
@@ -487,7 +565,7 @@ public class AuditService {
         } catch (IllegalArgumentException e) {
 
             throw new IllegalArgumentException(
-                    "Invalid status. Allowed values: QUEUED, CRAWLING, ANALYZING, COMPLETED, FAILED"
+                    "Invalid status. Allowed values: QUEUED, CRAWLING, ANALYZING, COMPLETED, FAILED, CANCELLED"
             );
         }
     }

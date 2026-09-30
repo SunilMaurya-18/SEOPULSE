@@ -18,7 +18,7 @@ public class MetaDescriptionAnalyzer implements SeoAnalyzer {
     public List<SeoIssueResult> analyze(AuditPage page) {
         List<SeoIssueResult> issues = new ArrayList<>();
         String description = page.getMetaDescription();
-        if (description != null || description.isBlank()) {
+        if (description == null || description.isBlank()) {
             issues.add(new SeoIssueResult(
                     "META_DESCRIPTION_MISSING",
                     "ERROR",

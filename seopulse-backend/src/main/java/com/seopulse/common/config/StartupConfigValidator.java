@@ -81,6 +81,18 @@ public class StartupConfigValidator {
             if (!botInfoUrl.startsWith("https://")) {
                 problems.add("SEOPULSE_BOT_INFO_URL must be an https:// URL in prod");
             }
+
+            if (!environment.getProperty("seopulse.auth.refresh-cookie-secure", Boolean.class, true)) {
+                problems.add("seopulse.auth.refresh-cookie-secure must be true in prod");
+            }
+
+            if (environment.getProperty("seopulse.email.log-content", Boolean.class, false)) {
+                problems.add("seopulse.email.log-content must be false in prod");
+            }
+
+            if (!environment.getProperty("seopulse.auth.app-base-url", "https://").startsWith("https://")) {
+                problems.add("SEOPULSE_APP_BASE_URL must be an https:// URL in prod");
+            }
         }
 
         if (!problems.isEmpty()) {
