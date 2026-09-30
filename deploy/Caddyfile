@@ -1,0 +1,53 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	request_body {
+		max_size 1MB
+	}
+
+	# Deferred so these replace (not duplicate) headers set by the upstreams.
+	header {
+		defer
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+		-X-Powered-By
+	}
+
+	handle /api/* {
+		# JSON only: compressing text/event-stream would buffer live audit updates.
+		encode {
+			zstd
+			gzip
+			match {
+				header Content-Type application/json*
+				header Content-Type application/problem+json*
+			}
+		}
+		reverse_proxy api:8082 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		encode zstd gzip
+		header {
+			defer
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.sentry.io; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		}
+		reverse_proxy web:8080
+	}
+
+	log {
+		output stdout
+		# Verify and reset links carry single-use tokens in the query string.
+		# Caddy already redacts Cookie and Authorization headers.
+		format filter {
+			wrap json
+			request>uri query {
+				delete token
+			}
+		}
+	}
+}

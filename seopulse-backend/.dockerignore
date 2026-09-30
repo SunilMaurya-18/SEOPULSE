@@ -1,0 +1,13 @@
+target
+.idea
+.vscode
+*.iml
+.env
+.env.*
+src/main/resources/application-local.yml
+docker-compose.yml
+Dockerfile
+.dockerignore
+*.md
+logs
+*.log

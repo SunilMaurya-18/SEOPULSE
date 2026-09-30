@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 import { projectApi, type Project } from '@/api/projects'
 import { PageSkeleton } from '@/components/ui/Skeleton'
@@ -50,6 +51,7 @@ async function resolveProject(): Promise<Project> {
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth()
+  const queryClient = useQueryClient()
   const [project, setProject] = useState<Project | null>(null)
   const [revision, setRevision] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -72,7 +74,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const notifyDataChanged = useCallback(() => {
     setRevision((value) => value + 1)
-  }, [])
+    void queryClient.invalidateQueries({ queryKey: ['projects'] })
+  }, [queryClient])
 
   useEffect(() => {
     if (!isAuthenticated) {

@@ -21,7 +21,9 @@ public class ImageAnalyzer implements SeoAnalyzer {
         List<SeoIssueResult> issues =
                 new ArrayList<>();
 
-        if (page.getImagesWithoutAlt() > 0) {
+        Integer imagesWithoutAlt = page.getImagesWithoutAlt();
+
+        if (imagesWithoutAlt != null && imagesWithoutAlt > 0) {
 
             issues.add(new SeoIssueResult(
                     "IMAGE_ALT_MISSING",

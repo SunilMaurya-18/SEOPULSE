@@ -11,12 +11,9 @@ import crawlercommons.robots.BaseRobotRules;
 import crawlercommons.robots.SimpleRobotRules;
 import crawlercommons.robots.SimpleRobotRules.RobotRulesMode;
 import lombok.extern.slf4j.Slf4j;
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -26,7 +23,6 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -57,6 +53,7 @@ public class WebsiteCrawler {
     private final CrawlerHttpClient httpClient;
     private final RobotsTxtService robotsTxtService;
     private final SitemapService sitemapService;
+    private final PageExtractor pageExtractor;
 
     public WebsiteCrawler(
             CrawlerProperties properties,
@@ -72,6 +69,7 @@ public class WebsiteCrawler {
         this.httpClient = httpClient;
         this.robotsTxtService = robotsTxtService;
         this.sitemapService = sitemapService;
+        this.pageExtractor = new PageExtractor(urlNormalizer);
     }
 
     /**
@@ -394,51 +392,32 @@ public class WebsiteCrawler {
                 return;
             }
 
-            Document document = parseHtml(response.body(), contentType, url);
-
-            Set<String> links = new LinkedHashSet<>();
-            int internalLinks = 0;
-            int externalLinks = 0;
-
-            for (Element anchor : document.select("a[href]")) {
-
-                String normalized = urlNormalizer.normalize(anchor.absUrl("href"));
-
-                if (normalized == null) {
-                    continue;
-                }
-
-                if (scope.contains(normalized)) {
-                    internalLinks++;
-                    links.add(normalized);
-                } else {
-                    externalLinks++;
-                }
-            }
+            Document document = PageExtractor.parse(response.body(), charsetFrom(contentType), url);
+            PageExtractor.PageContent content = pageExtractor.extract(document, scope::contains);
 
             record(new CrawledPage(
                     url,
                     Outcome.CRAWLED,
                     response.status(),
                     contentType,
-                    extractTitle(document),
-                    extractMetaDescription(document),
-                    extractCanonical(document),
-                    countWords(document),
-                    document.select("h1").size(),
-                    document.select("img").size(),
-                    countImagesWithoutAlt(document),
-                    internalLinks,
-                    externalLinks,
+                    content.title(),
+                    content.metaDescription(),
+                    content.canonicalUrl(),
+                    content.wordCount(),
+                    content.h1Count(),
+                    content.imageCount(),
+                    content.imagesWithoutAlt(),
+                    content.internalLinkCount(),
+                    content.externalLinkCount(),
                     depth,
-                    links,
+                    content.internalLinks(),
                     null,
                     null,
                     null
             ));
 
             if (depth < properties.getMaxDepth()) {
-                links.forEach(link -> enqueue(link, depth + 1));
+                content.internalLinks().forEach(link -> enqueue(link, depth + 1));
             }
         }
 
@@ -585,10 +564,6 @@ public class WebsiteCrawler {
         return Math.min(maxMs, Math.max(properties.getMinDelayMs(), waitMs));
     }
 
-    private static Document parseHtml(byte[] body, String contentType, String baseUrl) throws IOException {
-        return Jsoup.parse(new ByteArrayInputStream(body), charsetFrom(contentType), baseUrl);
-    }
-
     /**
      * Returns the charset declared in the Content-Type header, or null so
      * that jsoup detects it from the BOM or {@code <meta charset>}.
@@ -640,72 +615,6 @@ public class WebsiteCrawler {
         List<String> copy = new ArrayList<>(chain);
         copy.add(url);
         return copy;
-    }
-
-    private String extractTitle(Document document) {
-
-        Element title = document.selectFirst("title");
-
-        if (title == null) {
-            return null;
-        }
-
-        String value = title.text().trim();
-
-        return value.isBlank() ? null : value;
-    }
-
-    private String extractMetaDescription(Document document) {
-
-        Element element = document.selectFirst("meta[name=description]");
-
-        if (element == null) {
-            return null;
-        }
-
-        String value = element.attr("content").trim();
-
-        return value.isBlank() ? null : value;
-    }
-
-    private String extractCanonical(Document document) {
-
-        Element canonical = document.selectFirst("link[rel=canonical]");
-
-        if (canonical == null) {
-            return null;
-        }
-
-        return urlNormalizer.normalize(canonical.absUrl("href"));
-    }
-
-    private int countWords(Document document) {
-
-        String text = document.body() != null
-                ? document.body().text()
-                : document.text();
-
-        if (text == null || text.isBlank()) {
-            return 0;
-        }
-
-        return text.trim().split("\\s+").length;
-    }
-
-    /**
-     * An empty alt attribute counts as missing for the current SEO rules.
-     */
-    private int countImagesWithoutAlt(Document document) {
-
-        int count = 0;
-
-        for (Element image : document.select("img")) {
-            if (image.attr("alt").isBlank()) {
-                count++;
-            }
-        }
-
-        return count;
     }
 
     private record CrawlTarget(String url, int depth) {

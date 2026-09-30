@@ -1,8 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Activity } from 'lucide-react'
-import axios from 'axios'
 
+import { getErrorMessage } from '@/api/errors'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -17,7 +17,10 @@ export function LoginPage() {
   const { login, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const location = useLocation()
   const { pushToast } = useToast()
+  const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from
+  const returnTo = from?.pathname ? `${from.pathname}${from.search ?? ''}` : '/dashboard'
 
   const pendingFromQuery = useMemo(() => {
     const raw = searchParams.get('url') ?? searchParams.get('audit')
@@ -33,7 +36,7 @@ export function LoginPage() {
     if (pendingFromQuery) {
       setPendingWebsiteUrl(pendingFromQuery)
     }
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={pendingFromQuery ? '/dashboard' : returnTo} replace />
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -52,16 +55,9 @@ export function LoginPage() {
           ? 'Connecting your website and starting an audit…'
           : 'Welcome back to SEOPulse.',
       })
-      navigate(pendingFromQuery ? '/dashboard' : '/dashboard', { replace: true })
+      navigate(pendingFromQuery ? '/dashboard' : returnTo, { replace: true })
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(
-          err.response?.data?.message ??
-            'Invalid email or password. Please try again.',
-        )
-      } else {
-        setError('Unable to sign in. Please try again.')
-      }
+      setError(getErrorMessage(err, 'Invalid email or password. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -124,6 +120,15 @@ export function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
           />
+
+          <div className="flex justify-end">
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-accent hover:text-accent-hover"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
           <Button type="submit" className="w-full" loading={loading}>
             Sign in

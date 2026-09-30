@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import axios from 'axios'
 
 import { auditApi } from '@/api/audits'
+import { getErrorCode, getErrorMessage } from '@/api/errors'
 import { websiteApi, websiteNameFromUrl } from '@/api/websites'
 import {
   peekPendingWebsiteUrl,
@@ -32,11 +32,13 @@ export function OnboardingHandler() {
     processing.current = true
 
     ;(async () => {
+      let websiteId: number | null = null
       try {
         const website = await websiteApi.createWebsite(projectId, {
           name: websiteNameFromUrl(pending),
           url: pending,
         })
+        websiteId = website.id
         notifyDataChanged()
 
         const audit = await auditApi.createAudit(projectId, website.id)
@@ -50,22 +52,21 @@ export function OnboardingHandler() {
 
         navigate(`/audits/${audit.id}`, { replace: true })
       } catch (err) {
-        console.error(err)
-        const message = axios.isAxiosError(err)
-          ? err.response?.data?.message ??
-            Object.values(
-              (err.response?.data?.validationErrors as Record<string, string>) ??
-                {},
-            )[0]
-          : null
+        if (websiteId !== null && getErrorCode(err) === 'EMAIL_NOT_VERIFIED') {
+          pushToast({
+            tone: 'info',
+            title: 'Website connected',
+            description: 'Verify your email to run your first audit.',
+          })
+          navigate(`/audits?websiteId=${websiteId}`, { replace: true })
+          return
+        }
 
+        console.error(err)
         pushToast({
           tone: 'error',
           title: 'Could not start onboarding audit',
-          description:
-            typeof message === 'string'
-              ? message
-              : 'Open Websites to add the site manually.',
+          description: getErrorMessage(err, 'Open Websites to add the site manually.'),
         })
         navigate('/websites', { replace: true })
       } finally {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   Activity,
   AlertTriangle,
@@ -15,9 +15,10 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { projectApi, type ProjectSummary } from '@/api/projects'
-import { websiteApi, type Website } from '@/api/websites'
-import { auditApi, type Audit, type AuditSummary } from '@/api/audits'
+import type { Website } from '@/api/websites'
+import type { Audit } from '@/api/audits'
+import { useAuditSummary } from '@/api/queries/audits'
+import { useDashboard } from '@/api/queries/dashboard'
 import { useWorkspace } from '@/lib/workspace'
 import { cn } from '@/lib/cn'
 
@@ -66,80 +67,22 @@ function scoreTone(score: number | null) {
   return 'text-critical'
 }
 
+const NO_WEBSITES: Website[] = []
+const NO_AUDITS: Record<number, Audit[]> = {}
+
 export function Dashboard() {
-  const { projectId, revision, project } = useWorkspace()
-  const [summary, setSummary] = useState<ProjectSummary | null>(null)
-  const [websites, setWebsites] = useState<Website[]>([])
-  const [auditsBySite, setAuditsBySite] = useState<Record<number, Audit[]>>({})
-  const [selectedWebsiteId, setSelectedWebsiteId] = useState<string>(ALL)
-  const [selectedSummary, setSelectedSummary] = useState<AuditSummary | null>(
-    null,
+  const { projectId, project } = useWorkspace()
+  const dashboard = useDashboard(projectId)
+  const [focusedWebsiteId, setSelectedWebsiteId] = useState<string>(ALL)
+
+  const summary = dashboard.data?.summary ?? null
+  const websites = dashboard.data?.websites ?? NO_WEBSITES
+  const auditsBySite = dashboard.data?.auditsBySite ?? NO_AUDITS
+  const selectedWebsiteId = websites.some(
+    (site) => String(site.id) === focusedWebsiteId,
   )
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  async function load(silent = false) {
-    try {
-      if (!silent) setLoading(true)
-      setError(null)
-
-      const websitesRes = await websiteApi.getWebsites(projectId, 0, 100)
-      const siteList = websitesRes.content ?? []
-      setWebsites(siteList)
-
-      let projectSummary: ProjectSummary | null = null
-      try {
-        projectSummary = await projectApi.getProjectSummary(projectId)
-      } catch {
-        projectSummary = {
-          id: projectId,
-          name: 'Workspace',
-          websiteCount: siteList.length,
-          auditCount: 0,
-          completedAuditCount: 0,
-          failedAuditCount: 0,
-        }
-      }
-      setSummary(projectSummary)
-
-      if (siteList.length === 0) {
-        setAuditsBySite({})
-        setSelectedSummary(null)
-        return
-      }
-
-      const auditPages = await Promise.all(
-        siteList.map((site) =>
-          auditApi
-            .getAudits(projectId, site.id, 0, 12)
-            .then((page) => ({ siteId: site.id, audits: page.content ?? [] }))
-            .catch(() => ({ siteId: site.id, audits: [] as Audit[] })),
-        ),
-      )
-
-      const nextMap: Record<number, Audit[]> = {}
-      for (const entry of auditPages) {
-        nextMap[entry.siteId] = entry.audits
-      }
-      setAuditsBySite(nextMap)
-
-      if (
-        selectedWebsiteId !== ALL &&
-        !siteList.some((site) => String(site.id) === selectedWebsiteId)
-      ) {
-        setSelectedWebsiteId(ALL)
-      }
-    } catch (err) {
-      console.error(err)
-      setError('Unable to load workspace telemetry. Please try again.')
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void load()
-  }, [projectId, revision])
+    ? focusedWebsiteId
+    : ALL
 
   const allAudits = useMemo(
     () =>
@@ -212,40 +155,12 @@ export function Dashboard() {
       })()
     : latestScore
 
-  useEffect(() => {
-    const hasActive = allAudits.some((audit) => ACTIVE.has(audit.status))
-    if (!hasActive) return
-    const timer = window.setInterval(() => {
-      void load(true)
-    }, 4000)
-    return () => window.clearInterval(timer)
-  }, [allAudits, projectId])
+  const latestSummary = useAuditSummary(projectId, latestCompleted?.id ?? NaN)
+  const selectedSummary = latestCompleted ? (latestSummary.data ?? null) : null
 
-  useEffect(() => {
-    const auditId = latestCompleted?.id
-    if (!auditId) {
-      setSelectedSummary(null)
-      return
-    }
+  if (dashboard.isPending) return <PageSkeleton />
 
-    let cancelled = false
-    ;(async () => {
-      try {
-        const data = await auditApi.getSummary(projectId, auditId)
-        if (!cancelled) setSelectedSummary(data)
-      } catch {
-        if (!cancelled) setSelectedSummary(null)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [latestCompleted?.id, projectId, selectedWebsiteId])
-
-  if (loading) return <PageSkeleton />
-
-  if (error) {
+  if (dashboard.isError) {
     return (
       <div className="space-y-4">
         <PageHeader eyebrow="Overview" title="Dashboard" />
@@ -253,12 +168,12 @@ export function Dashboard() {
           variant="error"
           title="Workspace unavailable"
           action={
-            <Button size="sm" onClick={() => void load()}>
+            <Button size="sm" onClick={() => void dashboard.refetch()}>
               Retry
             </Button>
           }
         >
-          {error}
+          Unable to load workspace telemetry. Please try again.
         </Alert>
       </div>
     )
@@ -384,7 +299,7 @@ export function Dashboard() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => void load()}
+              onClick={() => void dashboard.refetch()}
               aria-label="Refresh dashboard"
             >
               <RefreshCw className="h-4 w-4" />

@@ -3,12 +3,11 @@ package com.seopulse.common.config;
 import com.seopulse.common.security.JwtAuthenticationConverter;
 import com.seopulse.common.security.RestAccessDeniedHandler;
 import com.seopulse.common.security.RestAuthenticationEntryPoint;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -47,9 +46,10 @@ public class SecurityConfig {
     ) throws Exception {
 
         http
+                // Stateless bearer tokens; the refresh cookie endpoints are
+                // protected by SameSite=Strict plus a required custom header.
                 .csrf(csrf -> csrf.disable())
 
-                // Enable CORS
                 .cors(cors ->
                         cors.configurationSource(corsConfigurationSource())
                 )
@@ -72,20 +72,34 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth ->
                         auth
+                                // SSE responses complete on an async dispatch;
+                                // the original request was already authorized.
+                                .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
+                                .permitAll()
+
                                 // Allow browser CORS preflight requests
                                 .requestMatchers(HttpMethod.OPTIONS, "/**")
                                 .permitAll()
+
+                                // Auth endpoints that act on the signed-in user
+                                .requestMatchers(
+                                        "/api/v1/auth/logout-all",
+                                        "/api/v1/auth/resend-verification"
+                                )
+                                .authenticated()
 
                                 // Public authentication endpoints
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
 
-                                // Health checks for load balancers and uptime monitors
+                                // Health checks and metrics scraping. In prod the
+                                // actuator runs on an internal-only port.
                                 .requestMatchers(
                                         "/api/v1/health",
                                         "/actuator/health",
                                         "/actuator/health/**",
-                                        "/actuator/info"
+                                        "/actuator/info",
+                                        "/actuator/prometheus"
                                 )
                                 .permitAll()
 
@@ -103,11 +117,13 @@ public class SecurityConfig {
                 )
 
                 .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(jwt ->
-                                jwt.jwtAuthenticationConverter(
-                                        new JwtAuthenticationConverter()
+                        oauth2
+                                .authenticationEntryPoint(new RestAuthenticationEntryPoint())
+                                .jwt(jwt ->
+                                        jwt.jwtAuthenticationConverter(
+                                                new JwtAuthenticationConverter()
+                                        )
                                 )
-                        )
                 );
 
         return http.build();
@@ -161,14 +177,6 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration
-    ) throws Exception {
-
-        return configuration.getAuthenticationManager();
-    }
-
-    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration configuration = new CorsConfiguration();
@@ -192,6 +200,15 @@ public class SecurityConfig {
 
         configuration.setAllowedHeaders(
                 List.of("*")
+        );
+
+        configuration.setExposedHeaders(
+                List.of(
+                        "X-Request-Id",
+                        "Retry-After",
+                        "X-RateLimit-Limit",
+                        "X-RateLimit-Remaining"
+                )
         );
 
         configuration.setAllowCredentials(true);

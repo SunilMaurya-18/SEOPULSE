@@ -1,13 +1,29 @@
+server:
+  # Trust X-Forwarded-* from the reverse proxy so client IPs (rate limits)
+  # and schemes are correct. The app port must only be reachable via the proxy.
+  forward-headers-strategy: framework
+  shutdown: graceful
+
 spring:
+  main:
+    # Logs are one JSON object per line; the banner would break parsers.
+    banner-mode: off
   jpa:
     hibernate:
       ddl-auto: validate
+  lifecycle:
+    timeout-per-shutdown-phase: 40s
 
 springdoc:
   api-docs:
     enabled: false
   swagger-ui:
     enabled: false
+
+management:
+  server:
+    # Internal only: health checks and Prometheus scraping. Never publish this port.
+    port: ${MANAGEMENT_PORT:8081}
 
 logging:
   level:

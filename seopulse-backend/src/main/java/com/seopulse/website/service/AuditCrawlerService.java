@@ -1,5 +1,6 @@
 package com.seopulse.website.service;
 
+import com.seopulse.common.metrics.AuditMetrics;
 import com.seopulse.website.crawler.CrawlResult;
 import com.seopulse.website.crawler.CrawledPage;
 import com.seopulse.website.crawler.WebsiteCrawler;
@@ -14,7 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -24,114 +29,82 @@ public class AuditCrawlerService {
     private final AuditPageRepository auditPageRepository;
     private final WebsiteCrawler websiteCrawler;
     private final TransactionTemplate transactionTemplate;
+    private final AuditMetrics metrics;
 
     public AuditCrawlerService(
             AuditRepository auditRepository,
             AuditPageRepository auditPageRepository,
             WebsiteCrawler websiteCrawler,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            AuditMetrics metrics
     ) {
         this.auditRepository = auditRepository;
         this.auditPageRepository = auditPageRepository;
         this.websiteCrawler = websiteCrawler;
         this.transactionTemplate = transactionTemplate;
+        this.metrics = metrics;
     }
 
     /**
-     * Crawls the audit's website and stores the pages. The crawl itself
-     * runs outside any transaction so no DB connection is held while
-     * waiting on the network.
+     * Crawls the audit's website and stores the pages, moving the audit
+     * from CRAWLING to ANALYZING. The crawl itself runs outside any
+     * transaction so no DB connection is held while waiting on the network.
+     * Failures propagate; the worker decides between retry and FAILED.
+     *
+     * @throws AuditStateChangedException if the audit was cancelled meanwhile
      */
     public void crawlAudit(Long auditId) throws InterruptedException {
 
         Audit audit = auditRepository.findByIdWithWebsite(auditId)
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Audit not found: " + auditId
-                        )
-                );
+                .orElseThrow(() -> new IllegalArgumentException("Audit not found: " + auditId));
 
         if (audit.getStatus() != AuditStatus.CRAWLING) {
-            log.warn(
-                    "Skipping crawl for audit {} because status is {}",
-                    auditId,
-                    audit.getStatus()
-            );
-            return;
+            throw new AuditStateChangedException(auditId, AuditStatus.CRAWLING.name());
         }
 
         String websiteUrl = audit.getWebsite().getUrl();
 
-        try {
+        log.info("Starting website crawl: auditId={}, url={}", auditId, websiteUrl);
 
-            log.info(
-                    "Starting website crawl: auditId={}, url={}",
-                    auditId,
-                    websiteUrl
-            );
+        CrawlResult result = websiteCrawler.crawl(websiteUrl);
 
-            CrawlResult result = websiteCrawler.crawl(websiteUrl);
-
-            log.info(
-                    "Crawl completed: auditId={}, pages={}, timedOut={}",
-                    auditId,
-                    result.pages().size(),
-                    result.timedOut()
-            );
-
-            transactionTemplate.executeWithoutResult(status -> {
-
-                Audit managed = auditRepository.findById(auditId)
-                        .orElseThrow(() -> new IllegalArgumentException("Audit not found: " + auditId));
-
-                savePages(managed, result.pages());
-
-                managed.setPagesCrawled(
-                        (int) result.pages().stream()
-                                .filter(page -> page.outcome() == CrawledPage.Outcome.CRAWLED)
-                                .count()
-                );
-                managed.setStatus(AuditStatus.ANALYZING);
-
-                if (result.timedOut()) {
-                    managed.setErrorMessage("Crawl time budget reached; results are partial");
-                }
-
-                auditRepository.save(managed);
-            });
-
-            log.info(
-                    "Audit {} moved to ANALYZING",
-                    auditId
-            );
-
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            markFailed(auditId, "Website crawl was interrupted");
-            throw ex;
-        } catch (RuntimeException ex) {
-
-            log.error(
-                    "Website crawl failed: auditId={}",
-                    auditId,
-                    ex
-            );
-
-            markFailed(auditId, buildErrorMessage(ex));
-
-            throw ex;
-        }
-    }
-
-    private void markFailed(Long auditId, String message) {
-        transactionTemplate.executeWithoutResult(status ->
-                auditRepository.findById(auditId).ifPresent(audit -> {
-                    audit.setStatus(AuditStatus.FAILED);
-                    audit.setCompletedAt(Instant.now());
-                    audit.setErrorMessage(message);
-                    auditRepository.save(audit);
-                })
+        log.info(
+                "Crawl completed: auditId={}, pages={}, timedOut={}",
+                auditId,
+                result.pages().size(),
+                result.timedOut()
         );
+
+        transactionTemplate.executeWithoutResult(status -> {
+
+            Audit managed = auditRepository.findById(auditId)
+                    .orElseThrow(() -> new IllegalArgumentException("Audit not found: " + auditId));
+
+            savePages(managed, result.pages());
+
+            int crawled = (int) result.pages().stream()
+                    .filter(page -> page.outcome() == CrawledPage.Outcome.CRAWLED)
+                    .count();
+
+            int updated = auditRepository.completeCrawl(
+                    auditId,
+                    AuditStatus.CRAWLING,
+                    AuditStatus.ANALYZING,
+                    crawled,
+                    result.timedOut() ? "Crawl time budget reached; results are partial" : null
+            );
+
+            if (updated == 0) {
+                // Rolls back the saved pages as well.
+                throw new AuditStateChangedException(auditId, AuditStatus.CRAWLING.name());
+            }
+        });
+
+        result.pages().stream()
+                .collect(Collectors.groupingBy(CrawledPage::outcome, Collectors.counting()))
+                .forEach((outcome, count) -> metrics.pagesCrawled(outcome.name(), count));
+
+        log.info("Audit {} moved to ANALYZING", auditId);
     }
 
     private void savePages(
@@ -141,10 +114,14 @@ public class AuditCrawlerService {
 
         Instant crawledAt = Instant.now();
 
-        for (CrawledPage page : pages) {
+        Map<String, CrawledPage> unique = pages.stream()
+                .filter(page -> page.url().length() <= 2048)
+                .collect(Collectors.toMap(CrawledPage::url, Function.identity(), (first, second) -> first,
+                        LinkedHashMap::new));
 
-            if (page.url().length() > 2048
-                    || auditPageRepository.existsByAuditIdAndUrl(audit.getId(), page.url())) {
+        for (CrawledPage page : unique.values()) {
+
+            if (auditPageRepository.existsByAuditIdAndUrl(audit.getId(), page.url())) {
                 continue;
             }
 
@@ -189,18 +166,5 @@ public class AuditCrawlerService {
         return value != null && value.length() > maxLength
                 ? value.substring(0, maxLength)
                 : value;
-    }
-
-    private String buildErrorMessage(Exception ex) {
-
-        String message = ex.getMessage();
-
-        if (message == null || message.isBlank()) {
-            return "Website crawl failed";
-        }
-
-        return message.length() > 1000
-                ? message.substring(0, 1000)
-                : message;
     }
 }

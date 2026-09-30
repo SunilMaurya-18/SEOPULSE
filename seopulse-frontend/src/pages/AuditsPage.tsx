@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   ExternalLink,
   FileSearch,
@@ -7,10 +7,12 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import axios from 'axios'
 
-import { auditApi, type Audit } from '@/api/audits'
-import { websiteApi, type Website } from '@/api/websites'
+import { isActiveAudit, type Audit } from '@/api/audits'
+import { getErrorMessage } from '@/api/errors'
+import { useCreateAudit, useWebsiteAudits } from '@/api/queries/audits'
+import { useWebsites } from '@/api/queries/websites'
+import type { Website } from '@/api/websites'
 import { useToast } from '@/lib/toast'
 import { useWorkspace } from '@/lib/workspace'
 
@@ -37,119 +39,70 @@ import {
 } from '@/components/ui/Table'
 import { cn } from '@/lib/cn'
 
-const IN_PROGRESS = new Set(['QUEUED', 'CRAWLING', 'ANALYZING'])
+const NO_WEBSITES: Website[] = []
+const NO_AUDITS: Audit[] = []
 
 export function AuditsPage() {
-  const { projectId, revision, notifyDataChanged } = useWorkspace()
+  const { projectId } = useWorkspace()
   const { pushToast } = useToast()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [websites, setWebsites] = useState<Website[]>([])
-  const [audits, setAudits] = useState<Audit[]>([])
-  const [selectedWebsiteId, setSelectedWebsiteId] = useState<number | null>(
-    null,
-  )
-  const [loadingWebsites, setLoadingWebsites] = useState(true)
-  const [loadingAudits, setLoadingAudits] = useState(false)
-  const [creatingAudit, setCreatingAudit] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  async function loadWebsites() {
-    try {
-      setLoadingWebsites(true)
-      setError(null)
+  const websitesQuery = useWebsites(projectId)
+  const websites = websitesQuery.data ?? NO_WEBSITES
+  const fromQuery = Number(searchParams.get('websiteId'))
+  const selectedWebsiteId = websites.some((site) => site.id === fromQuery)
+    ? fromQuery
+    : (websites[0]?.id ?? null)
 
-      const response = await websiteApi.getWebsites(projectId, 0, 100)
-      const websiteList = response.content ?? []
-      setWebsites(websiteList)
+  const auditsQuery = useWebsiteAudits(projectId, selectedWebsiteId)
+  const audits = auditsQuery.data ?? NO_AUDITS
+  const createAudit = useCreateAudit(projectId)
+  const [createError, setCreateError] = useState<string | null>(null)
 
-      const fromQuery = Number(searchParams.get('websiteId'))
-      if (fromQuery && websiteList.some((site) => site.id === fromQuery)) {
-        setSelectedWebsiteId(fromQuery)
-      } else if (websiteList.length > 0 && selectedWebsiteId === null) {
-        setSelectedWebsiteId(websiteList[0].id)
-      }
-    } catch (err) {
-      console.error('Failed to load websites:', err)
-      setError('Unable to load websites. Please try again.')
-    } finally {
-      setLoadingWebsites(false)
-    }
+  const loadingWebsites = websitesQuery.isPending
+  const loadingAudits = selectedWebsiteId !== null && auditsQuery.isPending
+  const creatingAudit = createAudit.isPending
+  const error =
+    createError ??
+    (websitesQuery.isError
+      ? 'Unable to load websites. Please try again.'
+      : auditsQuery.isError
+        ? 'Unable to load audits. Please try again.'
+        : null)
+
+  function setSelectedWebsiteId(websiteId: number) {
+    const next = new URLSearchParams(searchParams)
+    next.set('websiteId', String(websiteId))
+    setSearchParams(next, { replace: true })
   }
 
-  async function loadAudits(websiteId: number, silent = false) {
-    try {
-      if (!silent) setLoadingAudits(true)
-      setError(null)
-
-      const response = await auditApi.getAudits(projectId, websiteId, 0, 20)
-      setAudits(response.content ?? [])
-    } catch (err) {
-      console.error('Failed to load audits:', err)
-      setError('Unable to load audits. Please try again.')
-    } finally {
-      if (!silent) setLoadingAudits(false)
-    }
-  }
-
-  async function handleCreateAudit() {
+  function handleCreateAudit() {
     if (selectedWebsiteId === null) return
-
-    try {
-      setCreatingAudit(true)
-      setError(null)
-      const audit = await auditApi.createAudit(projectId, selectedWebsiteId)
-      notifyDataChanged()
-      pushToast({
-        tone: 'success',
-        title: 'Audit started',
-        description: `Opening live report for audit #${audit.id}.`,
-      })
-      navigate(`/audits/${audit.id}`)
-    } catch (err) {
-      console.error('Failed to create audit:', err)
-      const message = axios.isAxiosError(err)
-        ? err.response?.data?.message
-        : null
-      setError(
-        typeof message === 'string'
-          ? message
-          : 'Unable to start the audit. Please try again.',
-      )
-    } finally {
-      setCreatingAudit(false)
-    }
+    setCreateError(null)
+    createAudit.mutate(selectedWebsiteId, {
+      onSuccess: (audit) => {
+        pushToast({
+          tone: 'success',
+          title: 'Audit started',
+          description: `Opening live report for audit #${audit.id}.`,
+        })
+        navigate(`/audits/${audit.id}`)
+      },
+      onError: (err) => {
+        setCreateError(getErrorMessage(err, 'Unable to start the audit. Please try again.'))
+      },
+    })
   }
 
-  useEffect(() => {
-    void loadWebsites()
-  }, [projectId, revision])
-
-  useEffect(() => {
-    if (selectedWebsiteId !== null) {
-      void loadAudits(selectedWebsiteId)
-      if (searchParams.get('websiteId') !== String(selectedWebsiteId)) {
-        const next = new URLSearchParams(searchParams)
-        next.set('websiteId', String(selectedWebsiteId))
-        setSearchParams(next, { replace: true })
-      }
-    }
-  }, [selectedWebsiteId, projectId, revision])
-
-  useEffect(() => {
-    if (selectedWebsiteId === null) return
-    const hasActive = audits.some((audit) => IN_PROGRESS.has(audit.status))
-    if (!hasActive) return
-
-    const timer = window.setInterval(() => {
-      void loadAudits(selectedWebsiteId, true)
-    }, 3500)
-
-    return () => window.clearInterval(timer)
-  }, [audits, selectedWebsiteId, projectId])
+  function retry() {
+    setCreateError(null)
+    void websitesQuery.refetch()
+    if (selectedWebsiteId !== null) void auditsQuery.refetch()
+  }
 
   const selectedWebsite = websites.find((w) => w.id === selectedWebsiteId)
-  const hasActive = audits.some((audit) => IN_PROGRESS.has(audit.status))
+  const hasActive = audits.some((audit) => isActiveAudit(audit.status))
   const hasCompleted = audits.some((audit) => audit.status === 'COMPLETED')
   const phase =
     websites.length === 0
@@ -208,13 +161,7 @@ export function AuditsPage() {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => {
-                if (selectedWebsiteId !== null) {
-                  loadAudits(selectedWebsiteId)
-                } else {
-                  loadWebsites()
-                }
-              }}
+              onClick={retry}
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Retry
@@ -327,7 +274,7 @@ export function AuditsPage() {
               </THead>
               <TBody>
                 {audits.map((audit) => {
-                  const inProgress = IN_PROGRESS.has(audit.status)
+                  const inProgress = isActiveAudit(audit.status)
                   const progress = getProgress(audit)
 
                   return (
@@ -395,8 +342,7 @@ export function AuditsPage() {
                               Open
                             </Button>
                           </Link>
-                          {(audit.status === 'COMPLETED' ||
-                            audit.status === 'FAILED') && (
+                          {!inProgress && (
                             <DownloadReportButton
                               projectId={projectId}
                               auditId={audit.id}

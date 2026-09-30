@@ -3,6 +3,25 @@ spring:
     hibernate:
       ddl-auto: validate
 
+seopulse:
+  auth:
+    refresh-cookie-secure: false
+    breached-password-check: false
+  email:
+    log-content: false
+  rate-limit:
+    # Tests register many users from one address; the rate-limit tests
+    # override these values explicitly.
+    register:
+      - capacity: 10000
+        period: 1h
+    general:
+      - capacity: 100000
+        period: 1m
+  worker:
+    cancellation-poll-ms: 200
+    block-timeout-seconds: 1
+
 logging:
   level:
     com.seopulse: DEBUG

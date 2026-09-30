@@ -6,6 +6,10 @@ spring:
     name: seopulse-backend
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+    group:
+      # Locally one process serves the API and runs the audit worker.
+      # In production the worker runs in its own container (prod,worker).
+      dev: worker
   config:
     # Personal, git-ignored overrides (see application-local.yml.example)
     import: optional:classpath:application-local.yml
@@ -36,6 +40,12 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  mvc:
+    async:
+      # SSE streams manage their own timeout.
+      request-timeout: -1
 
 springdoc:
   swagger-ui:
@@ -47,20 +57,48 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: never
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState,db,redis
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+sentry:
+  # Empty DSN disables Sentry.
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:${spring.profiles.active}}
+  release: ${SENTRY_RELEASE:}
+  send-default-pii: false
+  traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.0}
 
 jwt:
   secret: ${JWT_SECRET}
-  expiration: ${JWT_EXPIRATION:3600000}
 
 seopulse:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  auth:
+    access-token-ttl: ${SEOPULSE_AUTH_ACCESS_TOKEN_TTL:15m}
+    refresh-token-ttl: ${SEOPULSE_AUTH_REFRESH_TOKEN_TTL:30d}
+    refresh-cookie-secure: ${SEOPULSE_AUTH_REFRESH_COOKIE_SECURE:true}
+    require-email-verification: ${SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION:true}
+    app-base-url: ${SEOPULSE_APP_BASE_URL:http://localhost:5173}
+    max-failed-logins: 10
+    lockout-duration: 15m
+    password-min-length: 10
+    breached-password-check: ${SEOPULSE_AUTH_BREACHED_PASSWORD_CHECK:true}
+  email:
+    # Logs full email bodies (including single-use links). Never in prod.
+    log-content: false
+  rate-limit:
+    enabled: ${SEOPULSE_RATE_LIMIT_ENABLED:true}
   crawler:
     max-pages: 500
     max-depth: 5
@@ -80,7 +118,13 @@ seopulse:
     max-duration-minutes: 20
     allowed-ports: 80,443
   worker:
-    pending-recovery-interval-minutes: 5
+    concurrency: ${SEOPULSE_WORKER_CONCURRENCY:2}
+    block-timeout-seconds: 5
+    audit-timeout: 30m
+    cancellation-poll-ms: 2000
+    pending-recovery-idle: 35m
     pending-recovery-limit: 10
     outbox-publish-interval-ms: 2000
     outbox-batch-size: 50
+    consumer-cleanup-idle-hours: 24
+    stuck-audit-grace: 10m

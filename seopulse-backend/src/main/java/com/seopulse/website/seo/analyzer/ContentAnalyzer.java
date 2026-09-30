@@ -23,7 +23,9 @@ public class ContentAnalyzer implements SeoAnalyzer {
         List<SeoIssueResult> issues =
                 new ArrayList<>();
 
-        if (page.getWordCount() < MIN_WORD_COUNT) {
+        Integer wordCount = page.getWordCount();
+
+        if (wordCount != null && wordCount < MIN_WORD_COUNT) {
 
             issues.add(new SeoIssueResult(
                     "LOW_WORD_COUNT",

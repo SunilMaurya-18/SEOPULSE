@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import axios from 'axios'
 
+import { getErrorMessage } from '@/api/errors'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -11,29 +11,6 @@ interface AddWebsiteModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (data: { name: string; url: string }) => Promise<void>
-}
-
-function extractApiError(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    const data = err.response?.data as
-      | {
-          message?: string
-          validationErrors?: Record<string, string>
-        }
-      | undefined
-
-    const validation = data?.validationErrors
-    if (validation) {
-      const first = Object.values(validation)[0]
-      if (first) return first
-    }
-
-    if (data?.message && data.message !== 'Validation Failed') {
-      return data.message
-    }
-  }
-
-  return 'Unable to add this website. Please try again.'
 }
 
 export function AddWebsiteModal({
@@ -66,7 +43,7 @@ export function AddWebsiteModal({
       onClose()
     } catch (err) {
       console.error('Failed to create website', err)
-      setError(extractApiError(err))
+      setError(getErrorMessage(err, 'Unable to add this website. Please try again.'))
     } finally {
       setLoading(false)
     }

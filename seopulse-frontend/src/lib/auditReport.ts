@@ -102,7 +102,7 @@ function scoreLabel(score: number | null) {
   return 'Critical'
 }
 
-function buildHtmlReport(payload: AuditReportPayload): string {
+export function buildHtmlReport(payload: AuditReportPayload): string {
   const { audit, summary, pages, issues, generatedAt } = payload
   const score = summary?.score ?? audit.score
   const errorCount = summary?.errorCount ?? 0

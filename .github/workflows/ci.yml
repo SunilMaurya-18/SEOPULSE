@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+  # deploy.yml calls this for pushes to main and version tags.
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (mvn verify)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: seopulse-backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          cache-dependency-path: seopulse-backend/pom.xml
+
+      # Unit + Testcontainers integration tests and the JaCoCo coverage gate.
+      - run: ./mvnw -B verify
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: backend-reports
+          path: |
+            seopulse-backend/target/site/jacoco/
+            seopulse-backend/target/surefire-reports/
+          retention-days: 7
+
+  frontend:
+    name: Frontend (lint, typecheck, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: seopulse-frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: seopulse-frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_API_BASE_URL: /api/v1
+
+  e2e:
+    name: E2E smoke + backup drill (production stack)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: deploy/docker-compose.prod.yml:deploy/docker-compose.ci.yml
+      COMPOSE_ENV_FILES: deploy/ci.env
+      COMPOSE_PROJECT_NAME: seopulse-ci
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Generate a throwaway backup key
+        run: |
+          docker run --rm --entrypoint age-keygen seopulse-ci/seopulse-backup:ci > age-identity.txt
+          chmod 644 age-identity.txt
+          echo "BACKUP_AGE_RECIPIENT=$(grep -m1 'public key' age-identity.txt | awk '{print $4}')" >> "$GITHUB_ENV"
+
+      - name: Start stack
+        run: docker compose up -d --wait --wait-timeout 300
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: seopulse-frontend/package-lock.json
+
+      - name: Install Playwright
+        working-directory: seopulse-frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Smoke test through Caddy
+        working-directory: seopulse-frontend
+        env:
+          E2E_BASE_URL: https://localhost:18443
+          E2E_IGNORE_HTTPS_ERRORS: "1"
+        run: npx playwright test
+
+      - name: Backup and restore drill
+        run: |
+          docker compose exec -T backup sh -c 'aws --endpoint-url "$S3_ENDPOINT" s3 mb "s3://$S3_BUCKET"'
+          docker compose exec -T backup backup.sh
+          docker compose run --rm --no-deps \
+            -v "$PWD/age-identity.txt:/run/secrets/age-identity:ro" \
+            --entrypoint restore.sh backup latest seopulse_restore
+          users=$(docker compose exec -T postgres psql -U seopulse -d seopulse_restore -tAc 'SELECT count(*) FROM users')
+          audits=$(docker compose exec -T postgres psql -U seopulse -d seopulse_restore -tAc "SELECT count(*) FROM audits WHERE status = 'COMPLETED'")
+          echo "restored users=$users completed_audits=$audits"
+          test "$users" -ge 1 && test "$audits" -ge 1
+
+      - name: Collect logs
+        if: failure()
+        run: docker compose logs --no-color > compose-logs.txt
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-artifacts
+          path: |
+            compose-logs.txt
+            seopulse-frontend/playwright-report/
+            seopulse-frontend/test-results/
+          retention-days: 7
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v --remove-orphans

@@ -19,6 +19,7 @@ type Status =
   | 'SKIPPED_ROBOTS'
   | 'TOO_LARGE'
   | 'FAILED'
+  | 'CANCELLED'
   | 'ACTIVE'
   | 'LIVE'
   | string
@@ -63,6 +64,15 @@ export function StatusBadge({ status }: { status: Status }) {
       <Badge variant="critical">
         <OctagonAlert className="h-3 w-3" aria-hidden />
         Failed
+      </Badge>
+    )
+  }
+
+  if (normalized === 'CANCELLED') {
+    return (
+      <Badge variant="neutral">
+        <Ban className="h-3 w-3" aria-hidden />
+        Cancelled
       </Badge>
     )
   }
