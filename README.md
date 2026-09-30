@@ -385,6 +385,8 @@ Use Ubuntu 24.04 LTS with about 4 vCPU, 8 GB RAM and 80 GB SSD. Staging should b
 | Push to `main` | Images tagged with the commit SHA and `main`, deployed to **staging** |
 | Tag `v*` (e.g. `v1.0.0`) | Images also tagged `1.0.0`, deployed to **production** after approval |
 
+Until an environment's secrets and `APP_URL` are set, staging deploys are skipped with a warning and production deploys fail, naming what is missing.
+
 A deploy uploads the Compose file, `Caddyfile`, `monitoring/` and `scripts/deploy.sh` (never `.env`), then runs `deploy.sh <sha>`: it pulls, starts the stack and waits for every health check, probes `/api/v1/health` and `/` through Caddy, and redeploys the previous tag if anything fails. To roll back by hand:
 
 ```bash
