@@ -30,6 +30,36 @@ public class AuditController {
     private final CurrentUserService currentUserService;
 
     /**
+     * Email a completed audit report. Recipients default to the signed-in user.
+     *
+     * POST /api/v1/projects/{projectId}/audits/{auditId}/email
+     */
+    @PostMapping("/{auditId}/email")
+    public ResponseEntity<java.util.Map<String, Integer>> emailReport(
+            @PathVariable Long projectId,
+            @PathVariable Long auditId,
+            @RequestBody(required = false) @jakarta.validation.Valid EmailReportRequest request,
+            Authentication authentication
+    ) {
+        int sent = auditService.emailReport(
+                projectId,
+                auditId,
+                currentUserService.getUserId(authentication),
+                request == null ? null : request.recipients(),
+                request == null ? null : request.note()
+        );
+        return ResponseEntity.accepted().body(java.util.Map.of("recipients", sent));
+    }
+
+    public record EmailReportRequest(
+            @jakarta.validation.constraints.Size(max = 5)
+            java.util.List<@jakarta.validation.constraints.Email String> recipients,
+            @jakarta.validation.constraints.Size(max = 1000)
+            String note
+    ) {
+    }
+
+    /**
      * Create a new SEO audit.
      *
      * POST /api/v1/projects/{projectId}/audits?websiteId={websiteId}

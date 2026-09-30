@@ -1,5 +1,6 @@
 package com.seopulse.website.service;
 
+import com.seopulse.billing.EntitlementService;
 import com.seopulse.common.metrics.AuditMetrics;
 import com.seopulse.website.crawler.CrawlResult;
 import com.seopulse.website.crawler.CrawledPage;
@@ -30,19 +31,22 @@ public class AuditCrawlerService {
     private final WebsiteCrawler websiteCrawler;
     private final TransactionTemplate transactionTemplate;
     private final AuditMetrics metrics;
+    private final EntitlementService entitlementService;
 
     public AuditCrawlerService(
             AuditRepository auditRepository,
             AuditPageRepository auditPageRepository,
             WebsiteCrawler websiteCrawler,
             TransactionTemplate transactionTemplate,
-            AuditMetrics metrics
+            AuditMetrics metrics,
+            EntitlementService entitlementService
     ) {
         this.auditRepository = auditRepository;
         this.auditPageRepository = auditPageRepository;
         this.websiteCrawler = websiteCrawler;
         this.transactionTemplate = transactionTemplate;
         this.metrics = metrics;
+        this.entitlementService = entitlementService;
     }
 
     /**
@@ -66,7 +70,12 @@ public class AuditCrawlerService {
 
         log.info("Starting website crawl: auditId={}, url={}", auditId, websiteUrl);
 
-        CrawlResult result = websiteCrawler.crawl(websiteUrl);
+        int pageCap = transactionTemplate.execute(status -> {
+            Audit loaded = auditRepository.findById(auditId).orElseThrow();
+            Long organizationId = loaded.getWebsite().getProject().getOrganization().getId();
+            return entitlementService.pagesPerAudit(organizationId);
+        });
+        CrawlResult result = websiteCrawler.crawl(websiteUrl, pageCap);
 
         log.info(
                 "Crawl completed: auditId={}, pages={}, timedOut={}",

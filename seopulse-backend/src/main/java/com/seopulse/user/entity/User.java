@@ -48,6 +48,12 @@ public class User {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
+    @Column(name = "terms_accepted_version", length = 40)
+    private String termsAcceptedVersion;
+
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
     @Builder.Default
     @Column(name = "failed_login_count", nullable = false)
     private int failedLoginCount = 0;

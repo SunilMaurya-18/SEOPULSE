@@ -1,28 +1,19 @@
-import { Fragment, useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, FileSearch } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Activity, FileSearch, Globe } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { websiteApi, type Website } from '@/api/websites'
 import { auditApi, type Audit, type AuditPage } from '@/api/audits'
+import { PageList } from '@/features/pages/PageList'
+import { hostOf } from '@/lib/format'
 import { useWorkspace } from '@/lib/workspace'
 
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Select } from '@/components/ui/Select'
-import { Badge } from '@/components/ui/Badge'
-import { StatusBadge } from '@/components/ui/StatusBadge'
-import {
-  Table,
-  THead,
-  TBody,
-  TR,
-  TH,
-  TD,
-} from '@/components/ui/Table'
 import { Pagination } from '@/components/ui/Pagination'
+import { PillSelect, SearchField } from '@/components/ui/PillSelect'
 import { PageSkeleton, TableSkeleton } from '@/components/ui/Skeleton'
 
 export function PagesInventoryPage() {
@@ -35,7 +26,7 @@ export function PagesInventoryPage() {
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
-  const [expanded, setExpanded] = useState<number | null>(null)
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadingPages, setLoadingPages] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -101,20 +92,24 @@ export function PagesInventoryPage() {
     loadPages()
   }, [auditId, page, projectId])
 
+  const visible = query.trim()
+    ? pages.filter((p) =>
+        `${p.url} ${p.title ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()),
+      )
+    : pages
+
   if (loading) return <PageSkeleton />
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         eyebrow="Pages"
         title="URL inventory"
-        description="Inspect crawled URLs, HTTP status, metadata, and on-page signals."
+        description="Every crawled URL with its HTTP status, metadata and on-page signals."
         action={
           auditId ? (
             <Link to={`/audits/${auditId}/pages`}>
-              <Button variant="secondary" size="sm">
-                Full audit pages
-              </Button>
+              <Button variant="secondary">Full audit pages</Button>
             </Link>
           ) : undefined
         }
@@ -127,9 +122,9 @@ export function PagesInventoryPage() {
       )}
 
       {websites.length === 0 ? (
-        <Card>
+        <div className="widget">
           <EmptyState
-            icon={<FileSearch className="h-5 w-5" />}
+            icon={<FileSearch className="h-6 w-6" />}
             title="No crawled pages yet"
             description="Add a website and run an audit to populate the URL inventory."
             action={
@@ -138,107 +133,64 @@ export function PagesInventoryPage() {
               </Link>
             }
           />
-        </Card>
+        </div>
       ) : (
         <>
-          <Card padded>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Select
-                label="Website"
-                value={websiteId}
-                onChange={(e) => setWebsiteId(e.target.value)}
-                options={websites.map((w) => ({
-                  value: String(w.id),
-                  label: w.url,
-                }))}
-              />
-              <Select
-                label="Audit"
-                value={auditId}
-                onChange={(e) => {
-                  setAuditId(e.target.value)
-                  setPage(0)
-                }}
-                options={audits.map((a) => ({
-                  value: String(a.id),
-                  label: `#${a.id} · ${a.status}`,
-                }))}
-              />
-            </div>
-          </Card>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <PillSelect
+              label="Website"
+              icon={<Globe />}
+              value={websiteId}
+              onChange={(e) => setWebsiteId(e.target.value)}
+              options={websites.map((w) => ({ value: String(w.id), label: w.name || hostOf(w.url) }))}
+              className="lg:max-w-[260px]"
+            />
+            <PillSelect
+              label="Audit"
+              icon={<Activity />}
+              value={auditId}
+              onChange={(e) => {
+                setAuditId(e.target.value)
+                setPage(0)
+              }}
+              options={audits.map((a) => ({
+                value: String(a.id),
+                label: `#${a.id} · ${a.status.toLowerCase()}`,
+              }))}
+              placeholder={audits.length === 0 ? 'No audits' : undefined}
+              className="lg:max-w-[240px]"
+            />
+            <SearchField
+              label="Search pages"
+              placeholder="Filter by URL or title"
+              value={query}
+              onChange={setQuery}
+              className="lg:ml-auto lg:w-72"
+            />
+          </div>
 
-          <Card title="Crawled URLs" description="Expand a row for technical inspection details.">
+          <section className="widget overflow-hidden">
+            <div className="px-6 pt-5 pb-3">
+              <h2 className="text-headline text-main">Crawled URLs</h2>
+              <p className="mt-0.5 text-xs text-dim">
+                {totalElements.toLocaleString()} page{totalElements === 1 ? '' : 's'} · tap a row to inspect
+              </p>
+            </div>
             {loadingPages ? (
               <TableSkeleton />
-            ) : pages.length === 0 ? (
+            ) : visible.length === 0 ? (
               <EmptyState
-                title="No pages in this audit"
-                description="The selected audit has not produced page records yet."
+                icon={<FileSearch className="h-6 w-6" />}
+                title={query.trim() ? 'No pages match' : 'No pages in this audit'}
+                description={
+                  query.trim()
+                    ? 'Try a different URL or title.'
+                    : 'The selected audit has not produced page records yet.'
+                }
               />
             ) : (
               <>
-                <Table>
-                  <THead>
-                    <TR>
-                      <TH className="w-8" />
-                      <TH>URL</TH>
-                      <TH>Status</TH>
-                      <TH>HTTP</TH>
-                      <TH>Title</TH>
-                    </TR>
-                  </THead>
-                  <TBody>
-                    {pages.map((p) => {
-                      const open = expanded === p.id
-                      return (
-                        <Fragment key={p.id}>
-                          <TR>
-                            <TD>
-                              <button
-                                type="button"
-                                className="rounded p-1 text-dim hover:bg-surface-elevated hover:text-main"
-                                onClick={() =>
-                                  setExpanded(open ? null : p.id)
-                                }
-                                aria-expanded={open}
-                                aria-label="Toggle URL details"
-                              >
-                                {open ? (
-                                  <ChevronDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )}
-                              </button>
-                            </TD>
-                            <TD>
-                              <span className="block max-w-[280px] truncate font-mono text-xs text-main sm:max-w-md">
-                                {p.url}
-                              </span>
-                            </TD>
-                            <TD>
-                              <StatusBadge status={p.status} />
-                            </TD>
-                            <TD mono>
-                              {p.statusCode ?? '—'}
-                            </TD>
-                            <TD>
-                              <span className="line-clamp-1 text-muted">
-                                {p.title || '—'}
-                              </span>
-                            </TD>
-                          </TR>
-                          {open && (
-                            <TR className="hover:bg-transparent">
-                              <TD colSpan={5} className="bg-surface-low">
-                                <UrlInspection page={p} />
-                              </TD>
-                            </TR>
-                          )}
-                        </Fragment>
-                      )
-                    })}
-                  </TBody>
-                </Table>
+                <PageList pages={visible} />
                 <Pagination
                   page={page}
                   totalPages={totalPages}
@@ -247,43 +199,9 @@ export function PagesInventoryPage() {
                 />
               </>
             )}
-          </Card>
+          </section>
         </>
       )}
-    </div>
-  )
-}
-
-function UrlInspection({ page }: { page: AuditPage }) {
-  const fields = [
-    { label: 'Canonical', value: page.canonicalUrl },
-    { label: 'Meta description', value: page.metaDescription },
-    { label: 'Content-Type', value: page.contentType },
-    { label: 'Word count', value: page.wordCount?.toString() },
-    { label: 'H1 count', value: String(page.h1Count) },
-    { label: 'Images', value: String(page.imageCount) },
-    { label: 'Images w/o alt', value: String(page.imagesWithoutAlt) },
-    { label: 'Internal links', value: String(page.internalLinkCount) },
-    { label: 'External links', value: String(page.externalLinkCount) },
-    { label: 'Depth', value: String(page.depth) },
-    { label: 'Crawled at', value: page.crawledAt },
-  ]
-
-  return (
-    <div className="grid gap-3 py-2 sm:grid-cols-2 lg:grid-cols-3">
-      {fields.map((f) => (
-        <div key={f.label}>
-          <p className="font-mono text-[10px] tracking-wider text-dim uppercase">
-            {f.label}
-          </p>
-          <p className="mt-1 break-all font-mono text-xs text-main">
-            {f.value || '—'}
-          </p>
-        </div>
-      ))}
-      <div className="sm:col-span-2 lg:col-span-3">
-        <Badge variant="neutral">URL inspection</Badge>
-      </div>
     </div>
   )
 }

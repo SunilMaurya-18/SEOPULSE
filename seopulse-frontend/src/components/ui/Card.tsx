@@ -19,28 +19,19 @@ export function Card({
 }: CardProps) {
   return (
     <section
-      className={cn(
-        'rounded-xl border border-default bg-surface',
-        className,
-      )}
+      className={cn('overflow-hidden rounded-2xl border border-default bg-surface card-shadow', className)}
       {...props}
     >
       {(title || description || action) && (
-        <div className="flex items-start justify-between gap-3 border-b border-default/80 px-4 py-3.5 sm:px-5">
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 sm:px-6">
           <div className="min-w-0">
-            {title && (
-              <h2 className="font-display text-sm font-semibold text-main">
-                {title}
-              </h2>
-            )}
-            {description && (
-              <p className="mt-0.5 text-xs text-muted">{description}</p>
-            )}
+            {title && <h2 className="text-headline text-main">{title}</h2>}
+            {description && <p className="mt-0.5 text-[13px] text-muted">{description}</p>}
           </div>
           {action && <div className="shrink-0">{action}</div>}
         </div>
       )}
-      <div className={padded ? 'p-4 sm:p-5' : undefined}>{children}</div>
+      <div className={padded ? 'p-5 sm:p-6' : undefined}>{children}</div>
     </section>
   )
 }

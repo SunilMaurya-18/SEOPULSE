@@ -1,37 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Info, RefreshCw, Search } from 'lucide-react'
+import { CheckCircle2, RefreshCw } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 
 import { auditApi, type SeoIssue } from '@/api/audits'
+import { useAuditSummary } from '@/api/queries/audits'
+import { IssueGroups } from '@/features/issues/IssueGroups'
+import { severityTabs, type SeverityFilter } from '@/features/issues/severity'
 import { useWorkspace } from '@/lib/workspace'
 
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Pagination } from '@/components/ui/Pagination'
-import { TableSkeleton } from '@/components/ui/Skeleton'
-import { SeverityBadge } from '@/components/ui/StatusBadge'
+import { SearchField } from '@/components/ui/PillSelect'
+import { CardSkeleton } from '@/components/ui/Skeleton'
 import { Tabs } from '@/components/ui/Tabs'
-import {
-  Table,
-  TBody,
-  TD,
-  TH,
-  THead,
-  TR,
-  TableToolbar,
-} from '@/components/ui/Table'
 
-const PAGE_SIZE = 50
-
-type SeverityFilter = 'ALL' | 'ERROR' | 'WARNING' | 'INFO'
+const PAGE_SIZE = 100
 
 export function SeoIssuesPage() {
   const { projectId } = useWorkspace()
   const { auditId } = useParams<{ auditId: string }>()
+  const summary = useAuditSummary(projectId, Number(auditId))
 
   const [issues, setIssues] = useState<SeoIssue[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,17 +89,24 @@ export function SeoIssuesPage() {
     })
   }, [issues, search])
 
+  const counts = summary.data
+    ? {
+        total: summary.data.totalIssues,
+        errors: summary.data.errorCount,
+        warnings: summary.data.warningCount,
+        info: summary.data.infoCount,
+      }
+    : null
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         eyebrow={`Audit #${auditId ?? '—'}`}
-        title="SEO Issues"
-        description="Review the SEO problems detected during this audit."
+        title="SEO issues"
+        description="Every problem detected during this audit, grouped by rule."
         action={
           <Link to={`/audits/${auditId}`}>
-            <Button variant="secondary" size="sm">
-              Back to audit
-            </Button>
+            <Button variant="secondary">Back to audit</Button>
           </Link>
         }
       />
@@ -128,44 +126,30 @@ export function SeoIssuesPage() {
         </Alert>
       )}
 
-      <Card className="overflow-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Tabs
-          className="px-4 sm:px-5"
           value={severity}
           onChange={(id) => setSeverity(id as SeverityFilter)}
-          items={[
-            { id: 'ALL', label: 'All' },
-            { id: 'ERROR', label: 'Errors' },
-            { id: 'WARNING', label: 'Warnings' },
-            { id: 'INFO', label: 'Info' },
-          ]}
+          items={severityTabs(counts)}
         />
+        <SearchField
+          label="Search issues"
+          placeholder="Filter by message, URL, or rule"
+          value={search}
+          onChange={setSearch}
+          className="sm:w-72"
+        />
+      </div>
 
-        <TableToolbar>
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-dim" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Filter by message, URL, or rule…"
-              className="pl-9"
-              aria-label="Search issues"
-            />
-          </div>
-          <p className="font-mono text-[11px] text-muted">
-            {filtered.length} shown
-            {search.trim() ? ` of ${issues.length}` : ''}
-            {!search.trim() && totalElements > 0
-              ? ` · ${totalElements} total`
-              : ''}
-          </p>
-        </TableToolbar>
-
-        {loading ? (
-          <TableSkeleton rows={6} />
-        ) : filtered.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3">
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="widget">
           <EmptyState
-            icon={<Info className="h-5 w-5" />}
+            icon={<CheckCircle2 className="h-6 w-6" />}
             title="No issues found"
             description={
               search.trim()
@@ -175,55 +159,29 @@ export function SeoIssuesPage() {
                   : `No ${severity.toLowerCase()} issues were found.`
             }
           />
-        ) : (
-          <Table>
-            <THead>
-              <TR className="hover:bg-transparent">
-                <TH>Issue</TH>
-                <TH>Severity</TH>
-                <TH>Rule</TH>
-                <TH>URL</TH>
-                <TH>Recommendation</TH>
-              </TR>
-            </THead>
-            <TBody>
-              {filtered.map((issue) => (
-                <TR key={issue.id} className="align-top">
-                  <TD>
-                    <p className="text-sm font-medium text-main">
-                      {issue.message}
-                    </p>
-                  </TD>
-                  <TD>
-                    <SeverityBadge severity={issue.severity} />
-                  </TD>
-                  <TD mono>{issue.ruleCode}</TD>
-                  <TD>
-                    <p
-                      className="max-w-[220px] truncate font-mono text-xs text-muted"
-                      title={issue.url}
-                    >
-                      {issue.url}
-                    </p>
-                  </TD>
-                  <TD>
-                    <p className="max-w-xs text-sm leading-5 text-muted">
-                      {issue.recommendation}
-                    </p>
-                  </TD>
-                </TR>
-              ))}
-            </TBody>
-          </Table>
-        )}
+        </div>
+      ) : (
+        <>
+          <p className="px-1 text-xs text-dim">
+            {filtered.length} finding{filtered.length === 1 ? '' : 's'}
+            {search.trim() ? ` of ${issues.length}` : ''}
+            {!search.trim() && totalElements > issues.length ? ` · ${totalElements} total` : ''}
+          </p>
+          <IssueGroups issues={filtered} />
+        </>
+      )}
 
-        <Pagination
-          page={page}
-          totalPages={totalPages}
-          totalElements={totalElements}
-          onPageChange={(next) => loadIssues(next)}
-        />
-      </Card>
+      {totalPages > 1 && (
+        <div className="widget overflow-hidden">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            onPageChange={(next) => loadIssues(next)}
+            className="border-t-0"
+          />
+        </div>
+      )}
     </div>
   )
 }

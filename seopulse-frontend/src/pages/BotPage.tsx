@@ -12,7 +12,7 @@ Crawl-delay: 10`
 
 export function BotPage() {
   return (
-    <div className="min-h-screen bg-canvas font-sans text-sm text-main antialiased">
+    <div className="dark min-h-screen bg-[#05070a] font-mono text-sm text-[#f2f5ea] antialiased">
       <MarketingHeader />
       <main className="mx-auto w-full max-w-3xl px-4 pt-28 pb-20 sm:px-6">
         <p className="font-mono text-[11px] tracking-wider text-accent uppercase">

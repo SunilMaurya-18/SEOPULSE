@@ -16,6 +16,7 @@ function lazyPage<K extends string>(
 const LandingPage = lazyPage(() => import('@/pages/LandingPage'), 'LandingPage')
 const TermsPage = lazyPage(() => import('@/pages/TermsPage'), 'TermsPage')
 const BotPage = lazyPage(() => import('@/pages/BotPage'), 'BotPage')
+const PricingPage = lazyPage(() => import('@/pages/PricingPage'), 'PricingPage')
 const LoginPage = lazyPage(() => import('@/pages/LoginPage'), 'LoginPage')
 const RegisterPage = lazyPage(() => import('@/pages/RegisterPage'), 'RegisterPage')
 const VerifyEmailPage = lazyPage(() => import('@/pages/VerifyEmailPage'), 'VerifyEmailPage')
@@ -55,6 +56,7 @@ export function AppRoutes() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/bot" element={<BotPage />} />
+          <Route path="/pricing" element={<PricingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />

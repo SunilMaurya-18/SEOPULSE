@@ -1,5 +1,6 @@
 package com.seopulse.project.service;
 
+import com.seopulse.organization.service.OrganizationProvisioningService;
 import com.seopulse.common.dto.PageResponse;
 import com.seopulse.common.exception.ResourceNotFoundException;
 import com.seopulse.project.dto.CreateProjectRequest;
@@ -33,6 +34,7 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectAccessService projectAccessService;
     private final UserRepository userRepository;
+    private final OrganizationProvisioningService organizationProvisioningService;
 
     private final WebsiteRepository websiteRepository;
     private final AuditRepository auditRepository;
@@ -60,6 +62,7 @@ public class ProjectService {
                                 : request.description().trim()
                 )
                 .user(user)
+                .organization(organizationProvisioningService.ensureFor(user))
                 .build();
 
         Project savedProject =

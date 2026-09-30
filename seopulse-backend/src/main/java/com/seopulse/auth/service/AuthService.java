@@ -7,6 +7,7 @@ import com.seopulse.auth.dto.RegisterRequest;
 import com.seopulse.common.exception.AccountLockedException;
 import com.seopulse.common.exception.DuplicateResourceException;
 import com.seopulse.common.exception.InvalidCredentialsException;
+import com.seopulse.organization.service.OrganizationProvisioningService;
 import com.seopulse.user.entity.Role;
 import com.seopulse.user.entity.User;
 import com.seopulse.user.repository.UserRepository;
@@ -39,6 +40,7 @@ public class AuthService {
     private final EmailVerificationService emailVerificationService;
     private final AuthEmails authEmails;
     private final AuthProperties properties;
+    private final OrganizationProvisioningService organizationProvisioningService;
 
     /** Compared against when the email is unknown, so timing does not reveal which accounts exist. */
     private final String dummyHash;
@@ -51,7 +53,8 @@ public class AuthService {
             RefreshTokenService refreshTokenService,
             EmailVerificationService emailVerificationService,
             AuthEmails authEmails,
-            AuthProperties properties
+            AuthProperties properties,
+            OrganizationProvisioningService organizationProvisioningService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -61,6 +64,7 @@ public class AuthService {
         this.emailVerificationService = emailVerificationService;
         this.authEmails = authEmails;
         this.properties = properties;
+        this.organizationProvisioningService = organizationProvisioningService;
         this.dummyHash = passwordEncoder.encode("seopulse-timing-equalizer");
     }
 
@@ -81,7 +85,10 @@ public class AuthService {
                     .email(email)
                     .password(passwordEncoder.encode(request.password()))
                     .role(Role.USER)
+                    .termsAcceptedVersion("2026-09-30")
+                    .termsAcceptedAt(Instant.now())
                     .build());
+            organizationProvisioningService.ensureFor(user);
         } catch (DataIntegrityViolationException ex) {
             throw new DuplicateResourceException("Email already exists");
         }

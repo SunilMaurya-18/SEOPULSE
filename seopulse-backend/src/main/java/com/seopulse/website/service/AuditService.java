@@ -1,5 +1,10 @@
 package com.seopulse.website.service;
 
+import com.seopulse.billing.EntitlementService;
+import com.seopulse.notification.EmailOutboxService;
+import com.seopulse.notification.EmailTemplates;
+import com.seopulse.organization.entity.OrganizationRole;
+import com.seopulse.organization.service.OrganizationAccessService;
 import com.seopulse.auth.config.AuthProperties;
 import com.seopulse.common.dto.PageResponse;
 import com.seopulse.common.exception.DuplicateResourceException;
@@ -56,6 +61,9 @@ public class AuditService {
     private final UrlValidator urlValidator;
     private final UserRepository userRepository;
     private final AuthProperties authProperties;
+    private final EntitlementService entitlementService;
+    private final OrganizationAccessService organizationAccessService;
+    private final EmailOutboxService emailOutboxService;
 
 
     // ============================================================
@@ -86,12 +94,20 @@ public class AuditService {
         }
 
 
+        if (website.getStatus() == WebsiteStatus.LOCKED) {
+            throw new InvalidStateException("This website is locked on the current plan");
+        }
+
         if (website.getStatus() != WebsiteStatus.ACTIVE) {
 
             throw new InvalidStateException(
                     "Website is not active"
             );
         }
+
+        Long organizationId = website.getProject().getOrganization().getId();
+        organizationAccessService.requireRole(organizationId, userId, OrganizationRole.MEMBER);
+        entitlementService.consumeAudit(organizationId);
 
 
         urlValidator.validate(
@@ -729,6 +745,53 @@ public class AuditService {
         );
     }
 
+
+    public int emailReport(Long projectId, Long auditId, Long userId, List<String> recipients, String note) {
+        Audit audit = projectAccessService.requireOwnedAudit(projectId, auditId, userId);
+        if (audit.getStatus() != AuditStatus.COMPLETED) {
+            throw new InvalidStateException("The report is not ready to email yet");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (authProperties.isRequireEmailVerification() && !user.isEmailVerified()) {
+            throw new EmailNotVerifiedException();
+        }
+
+        List<String> targets = (recipients == null ? List.<String>of() : recipients).stream()
+                .map(value -> value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT))
+                .filter(value -> !value.isEmpty())
+                .distinct()
+                .toList();
+        if (targets.isEmpty()) {
+            targets = List.of(user.getEmail());
+        }
+        if (targets.size() > 5) {
+            throw new InvalidStateException("Send the report to at most 5 recipients at a time");
+        }
+
+        String url = authProperties.getAppBaseUrl() + "/audits/" + audit.getId();
+        String summary = "%s shared the SEO audit for %s. Health score %s, %d pages crawled.".formatted(
+                user.getName(),
+                audit.getWebsite().getUrl(),
+                audit.getScore() == null ? "n/a" : audit.getScore(),
+                audit.getPagesCrawled()
+        );
+        String trimmedNote = note == null ? "" : note.trim();
+        if (trimmedNote.length() > 1000) {
+            trimmedNote = trimmedNote.substring(0, 1000);
+        }
+        String intro = trimmedNote.isEmpty() ? summary : summary + "\n\n" + trimmedNote;
+
+        for (String to : targets) {
+            emailOutboxService.enqueue(
+                    to,
+                    "SEO audit report: " + audit.getWebsite().getName(),
+                    EmailTemplates.text(intro, url),
+                    EmailTemplates.html("SEO audit report", intro, "Open report", url)
+            );
+        }
+        return targets.size();
+    }
 
     // ============================================================
     // SEO ISSUE → DTO

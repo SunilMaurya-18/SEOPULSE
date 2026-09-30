@@ -38,6 +38,10 @@ export default defineConfig(({ command, mode }) => {
     resolve: {
       alias: {
         '@': import.meta.dirname + '/src',
+        '@designcodeio/threeui/style.css':
+          import.meta.dirname + '/src/shaders/threeui.css',
+        '@designcodeio/threeui':
+          import.meta.dirname + '/src/shaders/TextAnimationCollection.tsx',
       },
     },
 

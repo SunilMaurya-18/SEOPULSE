@@ -3,9 +3,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "IBM Plex Mono", ui-monospace, monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-code: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
 
   --radius-sm: 0.125rem;
   --radius: 0.375rem;
@@ -32,6 +33,7 @@
   --color-accent: var(--sp-accent);
   --color-accent-hover: var(--sp-accent-hover);
   --color-accent-surface: var(--sp-accent-surface);
+  --color-on-accent: var(--sp-on-accent);
 
   --color-success: var(--sp-success);
   --color-success-surface: var(--sp-success-surface);
@@ -58,9 +60,10 @@
   --sp-border: #e2e8f0;
   --sp-focus: #94a3b8;
 
-  --sp-accent: #9f1239;
-  --sp-accent-hover: #881337;
-  --sp-accent-surface: rgb(159 18 57 / 0.08);
+  --sp-accent: #f5504a;
+  --sp-accent-hover: #ff6d66;
+  --sp-accent-surface: rgb(245 80 74 / 0.1);
+  --sp-on-accent: #1c0d0b;
 
   --sp-success: #059669;
   --sp-success-surface: #ecfdf5;
@@ -76,23 +79,24 @@
 }
 
 .dark {
-  /* Obsidian Telemetry — Dark */
-  --sp-canvas: #070709;
-  --sp-surface: #111114;
-  --sp-surface-low: #17171b;
-  --sp-surface-elevated: #1d1d22;
-  --sp-surface-high: #27272c;
+  /* Terminal field — near-black, coral, olive cards */
+  --sp-canvas: #05070a;
+  --sp-surface: #141816;
+  --sp-surface-low: #0c0f0e;
+  --sp-surface-elevated: #1e2420;
+  --sp-surface-high: #2a312c;
 
-  --sp-main: #f8fafc;
-  --sp-muted: #94a3b8;
-  --sp-dim: #64748b;
+  --sp-main: #f2f5ea;
+  --sp-muted: #c5c8bc;
+  --sp-dim: #8e9388;
 
-  --sp-border: #2a2f3a;
-  --sp-focus: #64748b;
+  --sp-border: #2c332e;
+  --sp-focus: #8e9388;
 
-  --sp-accent: #e11d48;
-  --sp-accent-hover: #fb7185;
-  --sp-accent-surface: rgb(225 29 72 / 0.14);
+  --sp-accent: #f5504a;
+  --sp-accent-hover: #ff6d66;
+  --sp-accent-surface: rgb(245 80 74 / 0.14);
+  --sp-on-accent: #1c0d0b;
 
   --sp-success: #10b981;
   --sp-success-surface: rgb(16 185 129 / 0.12);
@@ -105,6 +109,108 @@
 
   --sp-overlay-shadow: var(--shadow-overlay-dark);
   color-scheme: dark;
+}
+
+/*
+ * Signed-in app shell: Apple-inspired system. Scoped to body.app-shell so the
+ * marketing pages keep their own look. Custom properties resolve where they
+ * are declared, so the Tailwind colour mappings are re-declared here too.
+ */
+body.app-shell {
+  --sp-canvas: #f5f5f7;
+  --sp-surface: #ffffff;
+  --sp-surface-low: #fbfbfd;
+  --sp-surface-elevated: #f0f0f3;
+  --sp-surface-high: #e5e5ea;
+  --sp-main: #1d1d1f;
+  --sp-muted: #6e6e73;
+  --sp-dim: #8e8e93;
+  --sp-border: rgb(0 0 0 / 0.07);
+  --sp-focus: #c7c7cc;
+  --sp-accent: #f5504a;
+  --sp-accent-hover: #ff6a62;
+  --sp-accent-surface: rgb(245 80 74 / 0.1);
+  --sp-on-accent: #ffffff;
+  --sp-success: #28b14c;
+  --sp-success-surface: rgb(52 199 89 / 0.12);
+  --sp-warning: #e08600;
+  --sp-warning-surface: rgb(255 149 0 / 0.12);
+  --sp-critical: #ff3b30;
+  --sp-critical-surface: rgb(255 59 48 / 0.1);
+  --sp-info: #007aff;
+  --sp-info-surface: rgb(0 122 255 / 0.1);
+  --sp-glass: rgb(255 255 255 / 0.72);
+  --sp-card-shadow: 0 0 0 1px rgb(0 0 0 / 0.04), 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.08);
+  --sp-overlay-shadow: 0 0 0 1px rgb(0 0 0 / 0.06), 0 30px 80px -20px rgb(0 0 0 / 0.3);
+
+  --color-canvas: var(--sp-canvas);
+  --color-surface: var(--sp-surface);
+  --color-surface-low: var(--sp-surface-low);
+  --color-surface-elevated: var(--sp-surface-elevated);
+  --color-surface-high: var(--sp-surface-high);
+  --color-main: var(--sp-main);
+  --color-muted: var(--sp-muted);
+  --color-dim: var(--sp-dim);
+  --color-default: var(--sp-border);
+  --color-focus: var(--sp-focus);
+  --color-accent: var(--sp-accent);
+  --color-accent-hover: var(--sp-accent-hover);
+  --color-accent-surface: var(--sp-accent-surface);
+  --color-on-accent: var(--sp-on-accent);
+  --color-success: var(--sp-success);
+  --color-success-surface: var(--sp-success-surface);
+  --color-warning: var(--sp-warning);
+  --color-warning-surface: var(--sp-warning-surface);
+  --color-critical: var(--sp-critical);
+  --color-critical-surface: var(--sp-critical-surface);
+  --color-info: var(--sp-info);
+  --color-info-surface: var(--sp-info-surface);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-sans);
+
+  --radius-sm: 0.375rem;
+  --radius: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.125rem;
+  --radius-2xl: 1.375rem;
+  --radius-3xl: 1.75rem;
+  --sp-btn-radius: 9999px;
+  --sp-field-radius: 0.75rem;
+  --sp-field-bg: var(--sp-surface-elevated);
+
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01", "ss03";
+  letter-spacing: -0.006em;
+}
+
+.dark body.app-shell {
+  --sp-canvas: #000000;
+  --sp-surface: #161618;
+  --sp-surface-low: #0e0e10;
+  --sp-surface-elevated: #232326;
+  --sp-surface-high: #2f2f33;
+  --sp-main: #f5f5f7;
+  --sp-muted: #a1a1a6;
+  --sp-dim: #6e6e73;
+  --sp-border: rgb(255 255 255 / 0.08);
+  --sp-focus: #48484a;
+  --sp-accent: #ff5a52;
+  --sp-accent-hover: #ff736c;
+  --sp-accent-surface: rgb(255 90 82 / 0.14);
+  --sp-success: #30d158;
+  --sp-success-surface: rgb(48 209 88 / 0.14);
+  --sp-warning: #ff9f0a;
+  --sp-warning-surface: rgb(255 159 10 / 0.14);
+  --sp-critical: #ff453a;
+  --sp-critical-surface: rgb(255 69 58 / 0.14);
+  --sp-info: #0a84ff;
+  --sp-info-surface: rgb(10 132 255 / 0.16);
+  --sp-glass: rgb(22 22 24 / 0.72);
+  --sp-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 1px rgb(255 255 255 / 0.06), 0 12px 32px -16px rgb(0 0 0 / 0.8);
+  --sp-overlay-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), 0 40px 100px -20px rgb(0 0 0 / 0.9);
 }
 
 @layer base {
@@ -147,13 +253,8 @@
   }
 
   ::selection {
-    background: rgb(159 18 57 / 0.24);
+    background: rgb(245 80 74 / 0.35);
     color: inherit;
-  }
-
-  .dark ::selection {
-    background: rgb(225 29 72 / 0.35);
-    color: #fff;
   }
 
   :focus-visible {
@@ -162,6 +263,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto !important;
+    }
+
     *,
     *::before,
     *::after {
@@ -226,6 +331,66 @@
   }
 }
 
+@keyframes star-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 -24px;
+  }
+}
+
+@keyframes drift-slow {
+  from {
+    transform: translateY(22px);
+  }
+  to {
+    transform: translateY(-28px);
+  }
+}
+
+@keyframes drift-mid {
+  from {
+    transform: translateY(40px);
+  }
+  to {
+    transform: translateY(-48px);
+  }
+}
+
+@keyframes drift-fast {
+  from {
+    transform: translateY(12px);
+  }
+  to {
+    transform: translateY(-64px);
+  }
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes soft-shimmer {
   0% {
     background-position: 200% 0;
@@ -268,9 +433,103 @@
   .app-canvas {
     background-color: var(--sp-canvas);
     background-image:
-      radial-gradient(ellipse 80% 50% at 0% -10%, color-mix(in oklab, var(--sp-accent) 10%, transparent), transparent 55%),
-      radial-gradient(ellipse 60% 40% at 100% 0%, color-mix(in oklab, var(--sp-info) 8%, transparent), transparent 50%);
+      radial-gradient(ellipse 60% 40% at 50% -12%, rgb(255 90 82 / 0.1), transparent 70%),
+      radial-gradient(ellipse 40% 30% at 100% 0%, rgb(10 132 255 / 0.06), transparent 70%);
   }
+
+  .glass {
+    background-color: var(--sp-glass);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+
+  .card-shadow {
+    box-shadow: var(--sp-card-shadow);
+  }
+
+  .widget {
+    border-radius: 1.5rem;
+    background-color: var(--sp-surface);
+    box-shadow: var(--sp-card-shadow);
+  }
+
+  .text-large-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.75rem, 2.4vw, 2.125rem);
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+  }
+
+  .text-headline {
+    font-family: var(--font-display);
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    font-weight: 600;
+    letter-spacing: -0.018em;
+  }
+
+  .text-caption {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  .num {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+  }
+
+  .starfield {
+    background-image:
+      radial-gradient(1px 1px at 8% 18%, rgb(242 245 234 / 0.8), transparent),
+      radial-gradient(1px 1px at 18% 72%, rgb(242 245 234 / 0.55), transparent),
+      radial-gradient(1.5px 1.5px at 28% 34%, rgb(242 245 234 / 0.7), transparent),
+      radial-gradient(1px 1px at 40% 82%, rgb(242 245 234 / 0.45), transparent),
+      radial-gradient(1px 1px at 52% 22%, rgb(242 245 234 / 0.75), transparent),
+      radial-gradient(1.5px 1.5px at 63% 58%, rgb(242 245 234 / 0.5), transparent),
+      radial-gradient(1px 1px at 74% 28%, rgb(242 245 234 / 0.65), transparent),
+      radial-gradient(1px 1px at 86% 76%, rgb(242 245 234 / 0.55), transparent),
+      radial-gradient(1px 1px at 92% 14%, rgb(242 245 234 / 0.7), transparent),
+      radial-gradient(1px 1px at 14% 46%, rgb(242 245 234 / 0.4), transparent),
+      radial-gradient(1px 1px at 48% 48%, rgb(242 245 234 / 0.5), transparent),
+      radial-gradient(1px 1px at 70% 88%, rgb(242 245 234 / 0.45), transparent);
+    background-size: 100% 100%;
+    animation: star-drift 28s linear infinite alternate;
+  }
+
+  .parallax-slow,
+  .parallax-mid,
+  .parallax-fast {
+    animation: drift-slow linear both;
+    animation-timeline: view();
+    animation-range: contain 0% contain 100%;
+  }
+
+  .parallax-mid {
+    animation-name: drift-mid;
+  }
+
+  .parallax-fast {
+    animation-name: drift-fast;
+  }
+
+  .caret-blink {
+    animation: caret-blink 1s steps(1) infinite;
+  }
+
+  .hero-rise {
+    animation: hero-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .hero-rise-2 { animation-delay: 90ms; }
+  .hero-rise-3 { animation-delay: 180ms; }
+  .hero-rise-4 { animation-delay: 270ms; }
+  .hero-rise-5 { animation-delay: 360ms; }
+  .hero-rise-6 { animation-delay: 450ms; }
+  .hero-rise-7 { animation-delay: 540ms; }
 
   .progress-shimmer {
     background-image: linear-gradient(

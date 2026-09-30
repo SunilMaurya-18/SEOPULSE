@@ -37,6 +37,8 @@ build/
 # Spring
 application-local.properties
 application-local.yml
+config/application-dev.yml
+docker-compose.override.yml
 # Environment / secrets
 .env
 .env.*

@@ -11,7 +11,7 @@ spring:
       # In production the worker runs in its own container (prod,worker).
       dev: worker
   config:
-    # Personal, git-ignored overrides (see application-local.yml.example)
+    # Personal, git-ignored overrides (see application-local.yml)
     import: optional:classpath:application-local.yml
 
   datasource:
@@ -31,6 +31,20 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+  # SMTP delivery (e.g. Gmail with an app password). Unused when RESEND_API_KEY is set.
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 10000
+      mail.smtp.timeout: 15000
+      mail.smtp.writetimeout: 15000
 
   data:
     web:
@@ -88,7 +102,8 @@ seopulse:
     access-token-ttl: ${SEOPULSE_AUTH_ACCESS_TOKEN_TTL:15m}
     refresh-token-ttl: ${SEOPULSE_AUTH_REFRESH_TOKEN_TTL:30d}
     refresh-cookie-secure: ${SEOPULSE_AUTH_REFRESH_COOKIE_SECURE:true}
-    require-email-verification: ${SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION:true}
+    # Off for now; set true to block audits until the email is verified.
+    require-email-verification: ${SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION:false}
     app-base-url: ${SEOPULSE_APP_BASE_URL:http://localhost:5173}
     max-failed-logins: 10
     lockout-duration: 15m
@@ -97,6 +112,18 @@ seopulse:
   email:
     # Logs full email bodies (including single-use links). Never in prod.
     log-content: false
+    resend-api-key: ${RESEND_API_KEY:}
+    from: ${EMAIL_FROM:SEOPulse <noreply@seopulse.app>}
+    dispatch-interval-ms: 5000
+  billing:
+    stripe-secret-key: ${STRIPE_SECRET_KEY:}
+    stripe-webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    pro-monthly-price-id: ${STRIPE_PRICE_PRO_MONTHLY:}
+    pro-yearly-price-id: ${STRIPE_PRICE_PRO_YEARLY:}
+    agency-monthly-price-id: ${STRIPE_PRICE_AGENCY_MONTHLY:}
+    agency-yearly-price-id: ${STRIPE_PRICE_AGENCY_YEARLY:}
+    success-url: ${STRIPE_SUCCESS_URL:http://localhost:5173/settings?billing=success}
+    cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/pricing}
   rate-limit:
     enabled: ${SEOPULSE_RATE_LIMIT_ENABLED:true}
   crawler:

@@ -128,7 +128,7 @@ Optional<Website> findByIdAndProjectIdAndProjectUserId(
 
 - [x] Delete `seopulse-backend/src/main/resources/application.properties`. It contains a real password and `spring.jpa.hibernate.ddl-auto=update`, which overrides `validate`.
 - [x] Move `server.port: ${SERVER_PORT:8082}` into `application.yml`.
-- [x] Add `application-local.yml` to `.gitignore` for personal overrides, and commit an `application-local.yml.example`. (Loaded through `spring.config.import`.)
+- [x] Add `application-local.yml` to `.gitignore` for personal overrides, and commit an `application-local.yml`. (Loaded through `spring.config.import`.)
 - [ ] Rotate the local Postgres password that was committed. Treat it as compromised wherever else it was reused.
 - [ ] Scrub history with `git filter-repo --path seopulse-backend/src/main/resources/application.properties --invert-paths`, then force-push once and ask any collaborators to re-clone. (The password is only in the old backend history, now backed up outside the repo at `../seopulse-backend.git-backup`; that history was never pushed. Scrub or delete the backup before sharing it.)
 - [x] Make startup fail fast in the `prod` profile when `JWT_SECRET` is shorter than 32 bytes or `DB_PASSWORD` is the dev default. (`StartupConfigValidator`; also checks `CORS_ALLOWED_ORIGINS` in prod and the JWT secret length in every profile.)
@@ -443,8 +443,8 @@ Stripe charges in each customer's currency by using multi-currency Prices on the
 
 **4.1 Organizations and roles** (new package `BE/organization`)
 
-- [ ] Entities and repositories: `Organization` (name, slug, `stripe_customer_id`), `OrganizationMember` (org, user, role), `Invitation` (email, role, token hash, expiry).
-- [ ] Roles and permissions:
+- [x] Entities and repositories: `Organization` (name, slug, `stripe_customer_id`), `OrganizationMember` (org, user, role), `Invitation` (email, role, token hash, expiry).
+- [x] Roles and permissions:
 
 | Action | OWNER | ADMIN | MEMBER | VIEWER |
 |---|---|---|---|---|
@@ -454,28 +454,28 @@ Stripe charges in each customer's currency by using multi-currency Prices on the
 | Billing and plan changes | yes | no | no | no |
 | Delete organization | yes | no | no | no |
 
-- [ ] `OrganizationAccessService.requireRole(orgId, userId, Role minRole)` replaces Phase 0's `ProjectAccessService`, and becomes the single authorization entry point used by every service.
+- [ ] `OrganizationAccessService.requireRole(orgId, userId, Role minRole)` replaces Phase 0's `ProjectAccessService`, and becomes the single authorization entry point used by every service. *(`requireRole` exists and guards org, billing, website-create and audit-create paths; `ProjectAccessService` still resolves reads, now via org membership in `ProjectRepository.findAccessible`.)*
 - [ ] Put the active organization in the URL: `/api/v1/orgs/{orgId}/projects/...`. Keep the old `/api/v1/projects/...` routes for one release as redirects or aliases, then remove them.
-- [ ] Endpoints: create, rename and delete organizations; list and remove members; change roles; send, accept and revoke invitations; leave an organization. The last OWNER cannot leave or be demoted.
-- [ ] Record security-relevant actions in `audit_log` (member added or removed, role changed, plan changed, org deleted).
-- [ ] On registration, create a personal organization with the new user as OWNER on the Free plan. This replaces the frontend's current "create default Workspace project" step in `FE/lib/workspace.tsx`.
+- [x] Endpoints: create, rename and delete organizations; list and remove members; change roles; send, accept and revoke invitations; leave an organization. The last OWNER cannot leave or be demoted.
+- [x] Record security-relevant actions in `audit_log` (member added or removed, role changed, plan changed, org deleted). *(Org and member events are logged; plan changes are not yet.)*
+- [x] On registration, create a personal organization with the new user as OWNER on the Free plan. *(The frontend still creates its default Workspace project inside that organization.)*
 
 **4.2 Tenancy data migration**
 
-- [ ] `V5__projects_to_organizations.sql`: create one organization per existing user, add that user as OWNER, add `projects.organization_id`, backfill it from `projects.user_id`, make it `NOT NULL`, add an index, then drop `projects.user_id` in a later release after verification.
-- [ ] Update `ProjectRepository` queries and `ProjectService` to be organization-scoped.
+- [x] `V5__projects_to_organizations.sql`: create one organization per existing user, add that user as OWNER, add `projects.organization_id`, backfill it from `projects.user_id`, make it `NOT NULL`, add an index, then drop `projects.user_id` in a later release after verification. *(`projects.user_id` is still present, as planned.)*
+- [x] Update `ProjectRepository` queries and `ProjectService` to be organization-scoped.
 - [ ] Re-run the Phase 0 ownership tests as cross-organization tests.
 
 **4.3 Stripe billing** (new package `BE/billing`)
 
-- [ ] Add `com.stripe:stripe-java`. Config: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the Price IDs per plan and interval.
-- [ ] Entities: `Plan` (code, name, limits JSONB, Stripe price IDs, `active`), `Subscription` (org, plan, Stripe subscription ID, status, `current_period_end`, `cancel_at_period_end`, `trial_end`), `StripeEvent` (event ID primary key, type, `processed_at`).
-- [ ] Endpoints:
+- [x] Add `com.stripe:stripe-java`. Config: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and the Price IDs per plan and interval.
+- [x] Entities: `Plan` (code, name, limits JSONB, Stripe price IDs, `active`), `Subscription` (org, plan, Stripe subscription ID, status, `current_period_end`, `cancel_at_period_end`, `trial_end`), `StripeEvent` (event ID primary key, type, `processed_at`).
+- [x] Endpoints:
   - `POST /api/v1/orgs/{orgId}/billing/checkout` creates a Checkout Session for a plan and interval and returns its URL (OWNER only).
   - `POST /api/v1/orgs/{orgId}/billing/portal` creates a Customer Portal session for card updates, invoices and cancellation.
   - `GET /api/v1/orgs/{orgId}/billing` returns the current plan, status, renewal date and usage.
   - `POST /api/v1/billing/webhook` is public, reads the raw request body, and verifies the `Stripe-Signature` header.
-- [ ] Webhook handling:
+- [x] Webhook handling: *(Implemented with signature verification and `stripe_events` idempotency; not yet exercised against real Stripe test mode.)*
 
 ```mermaid
 sequenceDiagram
@@ -495,42 +495,44 @@ sequenceDiagram
 ```
 
 - [ ] Events to handle: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.trial_will_end`, `invoice.paid`, `invoice.payment_failed`.
-- [ ] Always re-fetch the subscription from Stripe instead of trusting the event payload, because events can arrive out of order.
-- [ ] Subscription states: `past_due` keeps paid features for a 7-day grace period with an in-app banner; `canceled` or `unpaid` drops the org to Free limits without deleting data.
-- [ ] A nightly reconciliation job compares every non-Free `subscriptions` row with Stripe and fixes any drift.
+- [x] Always re-fetch the subscription from Stripe instead of trusting the event payload, because events can arrive out of order.
+- [ ] Subscription states: `past_due` keeps paid features for a 7-day grace period with an in-app banner; `canceled` or `unpaid` drops the org to Free limits without deleting data. *(Backend grace-period logic is done; the in-app banner is not.)*
+- [x] A nightly reconciliation job compares every non-Free `subscriptions` row with Stripe and fixes any drift.
 
 **4.4 Entitlements and usage** (`BE/billing/EntitlementService.java`)
 
-- [ ] `EntitlementService.check(orgId, Feature feature)` and `consume(orgId, Meter meter, amount)`, backed by `usage_counters (org_id, meter, period_start, used)` with an atomic `UPDATE ... SET used = used + ? WHERE used + ? <= limit`.
-- [ ] Enforcement points:
+- [x] `EntitlementService.check(orgId, Feature feature)` and `consume(orgId, Meter meter, amount)`, backed by `usage_counters (org_id, meter, period_start, used)` with an atomic `UPDATE ... SET used = used + ? WHERE used + ? <= limit`.
+- [x] Enforcement points:
   - `WebsiteService.createWebsite` checks the website count.
   - `AuditService.createAudit` consumes one monthly audit.
   - `WebsiteCrawler` caps `maxPages` at the plan's pages-per-audit instead of the global setting.
   - Invitation creation checks the member count.
-- [ ] When a limit is exceeded, return `402 Payment Required` as a `ProblemDetail` with `limit`, `used` and `upgradeTo` fields.
-- [ ] When downgrading, existing websites above the limit become read-only (`WebsiteStatus.LOCKED`) instead of being deleted, and the user chooses which ones stay active.
+- [x] When a limit is exceeded, return `402 Payment Required` as a `ProblemDetail` with `limit`, `used` and `upgradeTo` fields. *(Covered by `SaasIntegrationTest`.)*
+- [ ] When downgrading, existing websites above the limit become read-only (`WebsiteStatus.LOCKED`) instead of being deleted, and the user chooses which ones stay active. *(Newest websites are locked automatically; the "choose which stay active" UI is not built.)*
 - [ ] Replace the Phase 2 per-user audit rate limit with the plan-based quota, keeping a burst limit to prevent abuse.
 
 **4.5 Email** (new package `BE/notification`)
 
-- [ ] `EmailSender` interface with a `ResendEmailSender` or `PostmarkEmailSender` implementation, plus the logging implementation from Phase 2 for development.
-- [ ] Send emails asynchronously through the outbox pattern already used for audits (an `email_outbox` table), so a slow provider never blocks a request.
-- [ ] Templates in `src/main/resources/templates/email/` (Thymeleaf or JTE): verify email, password reset, invitation, audit completed, trial ending, payment failed, subscription cancelled.
+- [x] `EmailSender` interface with a `ResendEmailSender` or `PostmarkEmailSender` implementation, plus the logging implementation from Phase 2 for development. *(Resend is used when `RESEND_API_KEY` is set.)*
+- [x] Send emails asynchronously through the outbox pattern already used for audits (an `email_outbox` table), so a slow provider never blocks a request. *(`EmailDispatcher`, run by the worker every 5 seconds.)*
+- [ ] Templates in `src/main/resources/templates/email/` (Thymeleaf or JTE): verify email, password reset, invitation, audit completed, trial ending, payment failed, subscription cancelled. *(Branded HTML is built in `EmailTemplates.java` for verify, reset, lockout, invitation, shared audit report and payment failed; no template engine, and trial-ending and cancellation emails are not written yet.)*
+- [x] Users can email a completed audit report to up to 5 recipients with a personal note (`POST .../audits/{auditId}/email`, dashboard "Email report" dialog).
 - [ ] Configure SPF, DKIM and DMARC on the sending domain, and add an unsubscribe link and preference flags for non-transactional mail.
 
 **4.6 Frontend**
 
-- [ ] Public `/pricing` page linked from `MarketingHeader`, with a monthly/yearly toggle and currency chosen by locale.
+- [x] Public `/pricing` page linked from `MarketingHeader`, with a monthly/yearly toggle and currency chosen by locale.
 - [ ] An organization switcher in `Topbar` backed by an `OrganizationContext` that replaces `FE/lib/workspace.tsx`.
-- [ ] `Settings > Team`: members list, invite modal, role changes.
-- [ ] `Settings > Billing`: current plan, usage meters, upgrade buttons (redirect to Checkout) and "Manage billing" (redirect to the Portal).
-- [ ] A global Axios interceptor that opens an upgrade modal on 402 responses.
-- [ ] Banners for trial days remaining, past-due payments, and unverified email.
+- [ ] `Settings > Team`: members list, invite modal, role changes. *(Members list, inline invite and `?invite=` acceptance are done; role changes in the UI are not.)*
+- [x] `Settings > Billing`: current plan, usage meters, upgrade buttons (redirect to Checkout) and "Manage billing" (redirect to the Portal).
+- [x] A global Axios interceptor that opens an upgrade modal on 402 responses.
+- [ ] Banners for trial days remaining, past-due payments, and unverified email. *(Only the unverified-email banner exists.)*
+- [x] Premium dashboard: health score with trend and delta, issue breakdown, KPI tiles with plan usage, ranked websites, plan card and activity timeline.
 
 **4.7 Legal and compliance basics**
 
 - [ ] Publish Terms of Service, a Privacy Policy, a Refund Policy and an acceptable-use policy for the crawler, updating the existing `FE/features/terms/` content.
-- [ ] Record which Terms version was accepted at signup (`users.terms_accepted_version`, `users.terms_accepted_at`).
+- [x] Record which Terms version was accepted at signup (`users.terms_accepted_version`, `users.terms_accepted_at`).
 
 ### Schema / migrations
 

@@ -78,6 +78,10 @@ public class WebsiteCrawler {
      * @throws IllegalArgumentException if the start URL is invalid or not public
      */
     public CrawlResult crawl(String startUrl) throws InterruptedException {
+        return crawl(startUrl, properties.getMaxPages());
+    }
+
+    public CrawlResult crawl(String startUrl, int maxPages) throws InterruptedException {
 
         URI validatedStartUrl = urlValidator.validate(startUrl);
 
@@ -91,12 +95,12 @@ public class WebsiteCrawler {
         log.info(
                 "Starting website crawl: url={}, maxPages={}, maxDepth={}, concurrency={}",
                 normalizedStartUrl,
-                properties.getMaxPages(),
+                maxPages,
                 properties.getMaxDepth(),
                 properties.getConcurrency()
         );
 
-        CrawlResult result = new CrawlSession(normalizedStartUrl, validatedStartUrl.getHost()).run();
+        CrawlResult result = new CrawlSession(normalizedStartUrl, validatedStartUrl.getHost(), maxPages).run();
 
         log.info(
                 "Website crawl finished: startUrl={}, pages={}, timedOut={}",
@@ -126,13 +130,13 @@ public class WebsiteCrawler {
 
         private volatile String startFinalUrl;
 
-        CrawlSession(String startUrl, String startHost) {
+        CrawlSession(String startUrl, String startHost, int pageCap) {
             this.startUrl = startUrl;
             this.startFinalUrl = startUrl;
             this.scope = new SiteScope(startHost);
             this.deadlineNanos = System.nanoTime()
                     + TimeUnit.MINUTES.toNanos(properties.getMaxDurationMinutes());
-            this.maxPages = Math.max(1, properties.getMaxPages());
+            this.maxPages = Math.max(1, pageCap);
             this.maxVisited = maxPages * 5;
         }
 

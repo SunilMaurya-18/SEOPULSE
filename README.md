@@ -85,7 +85,7 @@ Default Compose credentials:
 | User | `seopulse` |
 | Password | `seopulse_dev_password` |
 
-> If you use local Postgres instead, set `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`, or copy `application-local.yml.example` to `application-local.yml` (git-ignored) in `seopulse-backend/src/main/resources`.
+> If you use local Postgres instead, set `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`, or copy `application-local.yml` to `application-local.yml` (git-ignored) in `seopulse-backend/src/main/resources`.
 
 ### 2) Start backend API
 
@@ -212,7 +212,7 @@ Production builds fail if `VITE_API_BASE_URL` is missing; see `seopulse-frontend
 
 Important settings live in:
 - `seopulse-backend/src/main/resources/application.yml` (defaults, all overridable by environment variables)
-- `seopulse-backend/src/main/resources/application-local.yml` (optional, git-ignored personal overrides; see `application-local.yml.example`)
+- `seopulse-backend/src/main/resources/application-local.yml` (optional, git-ignored personal overrides; see `application-local.yml`)
 
 The database schema is managed only by Flyway (`db/migration`); Hibernate runs with `ddl-auto: validate`. The `prod` profile refuses to start with a weak `JWT_SECRET`, the default `DB_PASSWORD`, missing/non-HTTPS `CORS_ALLOWED_ORIGINS`, a non-HTTPS `SEOPULSE_BOT_INFO_URL`, or `seopulse.crawler.allow-private-networks=true`.
 
@@ -228,9 +228,12 @@ Common values:
 | `JWT_SECRET` | long random secret, at least 32 bytes (required) |
 | `SEOPULSE_AUTH_ACCESS_TOKEN_TTL` / `SEOPULSE_AUTH_REFRESH_TOKEN_TTL` | `15m` / `30d` |
 | `SEOPULSE_AUTH_REFRESH_COOKIE_SECURE` | `true` (must stay `true` in prod; `false` in `dev`) |
-| `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION` | `true`; set `false` for smoke tests |
+| `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` (currently disabled); set `true` to block audits until the email is verified |
 | `SEOPULSE_AUTH_BREACHED_PASSWORD_CHECK` | `true` (HIBP range API, fails open) |
 | `SEOPULSE_APP_BASE_URL` | frontend origin used in email links (`https://` in prod) |
+| `RESEND_API_KEY` | sends email through Resend (takes precedence over SMTP) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USERNAME` / `SMTP_PASSWORD` | sends email over SMTP, e.g. `smtp.gmail.com` / `587` with a Gmail app password |
+| `EMAIL_FROM` | sender, e.g. `SEOPulse <you@gmail.com>`; Gmail only sends as the signed-in account |
 | `SEOPULSE_RATE_LIMIT_ENABLED` | `true` |
 | `SEOPULSE_WORKER_CONCURRENCY` | audits processed in parallel per worker (`2`) |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` | optional error reporting |
@@ -238,7 +241,7 @@ Common values:
 | `CORS_ALLOWED_ORIGINS` | comma-separated origins; defaults to `localhost:5173/5174` in `dev` only |
 | `SEOPULSE_BOT_INFO_URL` | public URL of the frontend `/bot` page, embedded in the crawler user agent (`https://` in prod) |
 
-Emails (verification, password reset, lockout) go through a logging `EmailSender` until Phase 4; the `dev` profile prints the links to the console.
+Emails (verification, password reset, lockout, reports) are queued in `email_outbox` and sent every 5 seconds by whichever backend process picks them up. With neither `RESEND_API_KEY` nor `SMTP_HOST` set they are only logged, and the `dev` profile prints the links to the console. The startup log line `Email delivery: ...` shows which sender is active.
 
 Crawler limits and politeness (`seopulse.crawler.*` in `application.yml`): `max-pages`, `max-depth`, `concurrency`, `min-delay-ms`, `max-crawl-delay-ms`, `max-retries`, `max-duration-minutes`, `max-body-size-bytes`, `allowed-ports`, `respect-robots-txt` and `robots-cache-ttl-hours`.
 
@@ -310,7 +313,8 @@ cd seopulse-frontend && E2E_BASE_URL=https://localhost:18443 E2E_IGNORE_HTTPS_ER
 | Hostname could not be resolved / restricted | URL validator blocked host | Use a public resolvable domain |
 | Frontend not picking env changes | Vite needs restart | Restart `npm run dev` |
 | Signed out after every reload | Refresh cookie not stored: `Secure` cookie over plain http, or API on a different site | Run the `dev` profile (non-secure cookie) and keep frontend and API on the same site (e.g. both `localhost`) |
-| "Verify your email" when starting an audit | Email not verified | Use the link printed in the backend console (`dev`), or set `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION=false` locally |
+| "Verify your email" when starting an audit | Email not verified | Configure SMTP or Resend (see above) and click "Resend verification email", use the link printed in the backend console (`dev`), or set `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION=false` locally |
+| Verification email never arrives | No sender configured, or delivery failing | Check the `Email delivery: ...` startup line and `Email delivery failed ... error=` warnings; for Gmail use an app password, not your normal password |
 | `429 Too Many Requests` | Rate limit hit | Wait for `Retry-After`, or set `SEOPULSE_RATE_LIMIT_ENABLED=false` locally |
 | `http://localhost:5173` suddenly redirects to https | You opened the local production stack (`https://localhost:18443`) in your own browser, and its HSTS header now applies to `localhost` | Clear it at `chrome://net-internals/#hsts` (delete domain `localhost`); only open the local stack from Playwright |
 | Caddy keeps restarting in production | Bad `Caddyfile` or a required variable such as `ACME_EMAIL` missing | `docker compose logs caddy`; validate with `docker run --rm -e APP_DOMAIN=example.com -e ACME_EMAIL=ops@example.com -v ./Caddyfile:/etc/caddy/Caddyfile caddy:2 caddy validate --config /etc/caddy/Caddyfile` |

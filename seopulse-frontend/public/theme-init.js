@@ -3,11 +3,9 @@
 (function () {
   try {
     var t = localStorage.getItem('seopulse-theme')
-    if (t !== 'light' && t !== 'dark') {
-      t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-    }
+    if (t !== 'light' && t !== 'dark') t = 'dark'
     document.documentElement.classList.add(t)
   } catch (e) {
-    document.documentElement.classList.add('light')
+    document.documentElement.classList.add('dark')
   }
 })()

@@ -1,5 +1,6 @@
 package com.seopulse.support;
 
+import com.seopulse.organization.service.OrganizationProvisioningService;
 import com.seopulse.project.entity.Project;
 import com.seopulse.project.repository.ProjectRepository;
 import com.seopulse.user.entity.Role;
@@ -44,6 +45,9 @@ public abstract class AbstractWorkerIntegrationTest extends AbstractIntegrationT
     @Autowired
     protected ProjectRepository projectRepository;
 
+    @Autowired
+    protected OrganizationProvisioningService organizationProvisioningService;
+
     @DynamicPropertySource
     static void crawlerProperties(DynamicPropertyRegistry registry) {
         registry.add("seopulse.crawler.allow-private-networks", () -> "true");
@@ -66,6 +70,7 @@ public abstract class AbstractWorkerIntegrationTest extends AbstractIntegrationT
         Project project = projectRepository.save(Project.builder()
                 .name("Worker project")
                 .user(owner)
+                .organization(organizationProvisioningService.ensureFor(owner))
                 .build());
 
         return websiteRepository.save(Website.builder()

@@ -96,6 +96,9 @@ api.interceptors.response.use(
     if ((error.response?.status ?? 0) >= 500) {
       captureError(error)
     }
+    if (error.response?.status === 402 && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('seopulse-upgrade', { detail: error.response.data }))
+    }
     if (error.response?.status !== 401 || !config || config._retried) {
       return Promise.reject(error)
     }

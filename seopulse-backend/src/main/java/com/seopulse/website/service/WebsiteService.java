@@ -1,7 +1,10 @@
 package com.seopulse.website.service;
 
+import com.seopulse.billing.EntitlementService;
 import com.seopulse.common.dto.PageResponse;
 import com.seopulse.common.exception.DuplicateResourceException;
+import com.seopulse.organization.entity.OrganizationRole;
+import com.seopulse.organization.service.OrganizationAccessService;
 import com.seopulse.project.entity.Project;
 import com.seopulse.project.service.ProjectAccessService;
 import com.seopulse.website.dto.CreateWebsiteRequest;
@@ -27,6 +30,8 @@ public class WebsiteService {
     private final WebsiteRepository websiteRepository;
     private final ProjectAccessService projectAccessService;
     private final UrlValidator urlValidator;
+    private final EntitlementService entitlementService;
+    private final OrganizationAccessService organizationAccessService;
 
     public WebsiteResponse createWebsite(
             Long projectId,
@@ -39,6 +44,8 @@ public class WebsiteService {
                         projectId,
                         userId
                 );
+        organizationAccessService.requireRole(project.getOrganization().getId(), userId, OrganizationRole.MEMBER);
+        entitlementService.checkWebsiteCapacity(project.getOrganization().getId());
 
         URI validatedUrl =
                 urlValidator.validate(request.url());

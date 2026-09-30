@@ -1,89 +1,100 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Globe } from 'lucide-react'
+import { Download, Gauge, ScanSearch } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
-import { setPendingWebsiteUrl } from '@/lib/pendingWebsite'
-import { useAuth } from '@/lib/auth'
+import { smoothScrollTo } from '@/features/landing/useInView'
+import { PredictiveArcCanvas, TextAnimationCollection } from '@designcodeio/threeui'
+import '@designcodeio/threeui/style.css'
+
+const features = [
+  { label: 'Crawl every page', icon: ScanSearch },
+  { label: 'Score every issue', icon: Gauge },
+  { label: 'Download the report', icon: Download },
+]
+
+const stats = ['10k+ pages crawled', '50+ SEO checks', '< 60s average scan', 'PDF and CSV export']
 
 export function HeroSection() {
-  const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
-  const [url, setUrl] = useState('')
-
-  function runQuickAudit(event: FormEvent) {
-    event.preventDefault()
-    const cleaned = url.trim()
-    if (!cleaned) {
-      navigate(isAuthenticated ? '/dashboard' : '/register')
-      return
-    }
-
-    setPendingWebsiteUrl(cleaned)
-
-    if (isAuthenticated) {
-      navigate('/dashboard')
-      return
-    }
-
-    navigate(`/register?url=${encodeURIComponent(cleaned)}`)
-  }
-
   return (
-    <section className="relative isolate overflow-hidden border-b border-default">
+    <section className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-black">
+      <div className="shader-frame pointer-events-none absolute -top-[14%] right-0 left-0 z-0 h-[118%]" aria-hidden>
+        <PredictiveArcCanvas
+          mode="dark"
+          speed={1}
+          hue={108}
+          saturation={1.2}
+          brightness={1}
+          archHeight={0.85}
+          thickness={1.15}
+          className="h-full w-full"
+        />
+      </div>
       <div
-        className="animate-land-pan absolute inset-0 -z-10 bg-[length:160%_160%] bg-[linear-gradient(125deg,#f8fafc_0%,#fee2e2_28%,#f8fafc_52%,#e2e8f0_78%,#f8fafc_100%)] dark:bg-[linear-gradient(125deg,#09090b_0%,#3f1212_30%,#09090b_55%,#1c1b1d_80%,#09090b_100%)]"
+        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_50%_38%,transparent_0%,transparent_46%,rgba(3,3,3,0.55)_100%)]"
         aria-hidden
       />
       <div
-        className="absolute inset-0 -z-10 opacity-[0.35] dark:opacity-[0.25]"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--sp-main) 18%, transparent) 1px, transparent 0)',
-          backgroundSize: '22px 22px',
-        }}
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-32 bg-gradient-to-b from-transparent to-[#243640]"
         aria-hidden
       />
 
-      <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] w-full max-w-5xl flex-col justify-center px-4 py-16 sm:px-6 sm:py-20">
-        <p className="animate-land-rise font-display text-5xl font-semibold tracking-tight text-main sm:text-7xl md:text-8xl">
-          SEOPulse
-        </p>
-        <div className="animate-land-line mt-5 h-1 w-44 rounded-full bg-accent" />
-
-        <h1 className="animate-land-rise-delay mt-8 max-w-2xl font-display text-2xl font-semibold tracking-tight text-main sm:text-4xl">
-          See what search engines see — then fix it.
-        </h1>
-        <p className="animate-land-rise-late mt-4 max-w-xl text-base leading-7 text-muted sm:text-lg">
-          Crawl your site, score SEO health, and ship clearer fixes from one
-          premium workspace.
+      <div className="relative z-10 flex flex-1 flex-col px-5 pt-[168px] pb-16 md:px-[60px] md:pt-[192px]">
+        <p className="hero-rise font-mono text-xs tracking-[0.22em] text-accent uppercase">
+          SEO analytics platform
         </p>
 
-        <form
-          onSubmit={runQuickAudit}
-          className="animate-land-rise-late mt-10 flex w-full max-w-xl flex-col gap-2 sm:flex-row"
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-default bg-surface/90 px-3 shadow-overlay backdrop-blur">
-            <Globe className="h-4 w-4 shrink-0 text-dim" />
-            <input
-              aria-label="Website URL"
-              className="w-full bg-transparent py-3.5 font-mono text-sm text-main placeholder:text-dim focus:outline-none"
-              placeholder="example.com"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </div>
+        <h1 className="sr-only">SEOPulse</h1>
+        <div className="shader-frame hero-rise hero-rise-2 pointer-events-none mt-3 h-[clamp(120px,16vw,210px)] w-full" aria-hidden>
+          <TextAnimationCollection
+            variant="threeui-intro"
+            mode="dark"
+            hue={0}
+            saturation={1}
+            brightness={1}
+          />
+        </div>
+
+        <p className="hero-rise hero-rise-3 mt-4 font-mono text-lg text-[#f2f5ea] sm:text-2xl">
+          Use data to get a 360-degree view of your site.
+        </p>
+        <p className="hero-rise hero-rise-4 mt-4 max-w-[720px] font-mono text-base leading-[1.7] text-[#8b93a1] sm:text-lg">
+          SEOPulse is a website audit and SEO intelligence tool. Enter any URL and it crawls every page, detects technical, content and performance issues, scores each one by severity, and turns everything into a clear, downloadable report. Track your site&apos;s health over time, find broken links, missing meta tags, slow pages and duplicate content, and know exactly what to fix first.
+        </p>
+
+        <ul className="hero-rise hero-rise-5 mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-8">
+          {features.map((feature) => {
+            const Icon = feature.icon
+            return (
+              <li key={feature.label} className="flex items-center gap-2 font-mono text-sm text-[#f2f5ea]">
+                <Icon className="h-4 w-4 text-accent" aria-hidden />
+                {feature.label}
+              </li>
+            )
+          })}
+        </ul>
+
+        <div className="hero-rise hero-rise-6 mt-7 flex flex-col gap-3 sm:flex-row">
           <button
-            type="submit"
-            className="inline-flex h-12 items-center justify-center gap-1.5 rounded-xl bg-accent px-5 text-sm font-medium text-white shadow-[0_16px_30px_-18px_var(--sp-accent)] transition hover:bg-accent-hover"
+            type="button"
+            onClick={() => smoothScrollTo('solutions')}
+            className="w-full rounded-md bg-accent px-5 py-3 font-mono text-sm text-on-accent transition hover:-translate-y-0.5 hover:brightness-110 sm:w-auto"
           >
-            Start free audit
-            <ArrowRight className="h-4 w-4" />
+            Learn More
           </button>
-        </form>
+          <Link
+            to="/register"
+            className="w-full rounded-md border border-[#f2f5ea]/70 px-5 py-3 text-center font-mono text-sm text-[#f2f5ea] transition hover:-translate-y-0.5 hover:border-accent hover:text-accent sm:w-auto"
+          >
+            Analyze My Site
+          </Link>
+        </div>
 
-        <p className="animate-land-rise-late mt-4 font-mono text-[11px] tracking-wide text-dim uppercase">
-          Connect · Crawl · Analyze · Report
-        </p>
+        <dl className="hero-rise hero-rise-7 mt-8 flex flex-wrap gap-x-8 gap-y-2">
+          {stats.map((stat) => (
+            <div key={stat}>
+              <dt className="font-mono text-xs tracking-wide text-[#8b93a1]">{stat}</dt>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   )

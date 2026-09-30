@@ -6,6 +6,7 @@ spring:
 seopulse:
   auth:
     refresh-cookie-secure: false
+    require-email-verification: true
     breached-password-check: false
   email:
     log-content: false

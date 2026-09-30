@@ -1,6 +1,8 @@
+import { Check } from 'lucide-react'
+
 import { cn } from '@/lib/cn'
 import { Progress } from './Progress'
-import { Badge } from './Badge'
+import { StatusBadge } from './StatusBadge'
 
 interface CrawlProgressProps {
   status: string
@@ -14,6 +16,12 @@ interface CrawlProgressProps {
 }
 
 const STAGES = ['QUEUED', 'CRAWLING', 'ANALYZING', 'COMPLETED'] as const
+const STAGE_LABELS: Record<(typeof STAGES)[number], string> = {
+  QUEUED: 'Queued',
+  CRAWLING: 'Crawling',
+  ANALYZING: 'Analyzing',
+  COMPLETED: 'Ready',
+}
 
 export function CrawlProgress({
   status,
@@ -53,7 +61,7 @@ export function CrawlProgress({
 
   const stageCopy =
     normalized === 'QUEUED'
-      ? 'Queued — waiting for a crawler worker'
+      ? 'Waiting for a crawler worker'
       : normalized === 'CRAWLING'
         ? 'Crawling pages and extracting metadata'
         : normalized === 'ANALYZING'
@@ -64,102 +72,120 @@ export function CrawlProgress({
               ? 'Audit failed — review the error and retry'
               : status.replace(/_/g, ' ')
 
+  const radius = 34
+  const circumference = 2 * Math.PI * radius
+
   return (
-    <div
-      className={cn(
-        'rounded-xl border border-default bg-surface p-4 sm:p-5',
-        className,
-      )}
+    <section
+      className={cn('widget relative overflow-hidden p-5 sm:p-6', className)}
+      aria-live="polite"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+      {running && (
+        <div className="pointer-events-none absolute -top-24 -left-16 h-56 w-56 rounded-full bg-accent/20 blur-3xl" />
+      )}
+
+      <div className="relative flex flex-col gap-6 md:flex-row md:items-center">
+        <div className="relative h-20 w-20 shrink-0">
+          <svg viewBox="0 0 80 80" className="h-20 w-20 -rotate-90">
+            <circle cx="40" cy="40" r={radius} fill="none" strokeWidth="7" className="stroke-surface-elevated" />
+            <circle
+              cx="40"
+              cy="40"
+              r={radius}
+              fill="none"
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference - (pct / 100) * circumference}
+              className={cn(
+                'transition-all duration-700 ease-out',
+                failed ? 'stroke-critical' : running ? 'stroke-accent' : 'stroke-success',
+              )}
+            />
+          </svg>
+          <span className="num absolute inset-0 flex items-center justify-center text-lg font-bold text-main">
+            {pct.toFixed(0)}%
+          </span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
             {running && (
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
               </span>
             )}
-            <p className="font-mono text-[11px] font-medium tracking-wider text-main uppercase">
+            <p className="text-headline text-main">
               {running ? 'Live crawl' : failed ? 'Crawl failed' : 'Crawl complete'}
             </p>
+            <StatusBadge status={status} />
           </div>
           <p className="mt-1 text-sm text-muted">{stageCopy}</p>
-          {websiteUrl && (
-            <p className="mt-1 truncate font-mono text-[11px] text-dim">
-              {websiteUrl}
-            </p>
-          )}
+          {websiteUrl && <p className="mt-0.5 truncate text-xs text-dim">{websiteUrl}</p>}
+
+          <ol className="mt-4 flex items-center">
+            {STAGES.map((stage, index) => {
+              const done = !failed && index < stageIdx
+              const active = !failed && index === stageIdx
+              return (
+                <li key={stage} className={cn('flex items-center', index < STAGES.length - 1 && 'flex-1')}>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold',
+                        done && 'bg-success text-white',
+                        active && (running ? 'bg-accent text-white' : 'bg-success text-white'),
+                        !done && !active && 'bg-surface-elevated text-dim',
+                      )}
+                    >
+                      {done || (active && !running) ? <Check className="h-3 w-3" strokeWidth={3} /> : index + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        'hidden text-xs font-medium sm:inline',
+                        active ? 'text-main' : done ? 'text-muted' : 'text-dim',
+                      )}
+                    >
+                      {STAGE_LABELS[stage]}
+                    </span>
+                  </span>
+                  {index < STAGES.length - 1 && (
+                    <span
+                      className={cn(
+                        'mx-2 h-0.5 flex-1 rounded-full',
+                        done ? 'bg-success' : 'bg-surface-elevated',
+                        active && running && 'progress-shimmer',
+                      )}
+                    />
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+
+          <Progress
+            className="mt-4"
+            value={pct}
+            tone={failed ? 'critical' : running ? 'accent' : 'success'}
+          />
         </div>
-        <Badge
-          variant={
-            failed
-              ? 'critical'
-              : running
-                ? 'accent'
-                : 'success'
-          }
-        >
-          {status}
-        </Badge>
+
+        <dl className="grid grid-cols-4 gap-2 md:w-[300px] md:grid-cols-2">
+          <TelemetryCell
+            label="Pages"
+            value={
+              targetPages
+                ? `${pagesCrawled.toLocaleString()} / ${targetPages.toLocaleString()}`
+                : pagesCrawled.toLocaleString()
+            }
+          />
+          <TelemetryCell label="Analyzed" value={pagesAnalyzed.toLocaleString()} />
+          <TelemetryCell label="Errors" value={String(errorCount)} tone="text-critical" />
+          <TelemetryCell label="Warnings" value={String(warningCount)} tone="text-warning" />
+        </dl>
       </div>
-
-      <ol className="mt-5 grid grid-cols-4 gap-2">
-        {STAGES.map((stage, index) => {
-          const done = !failed && index < stageIdx
-          const active = !failed && index === stageIdx
-          return (
-            <li key={stage} className="min-w-0">
-              <div
-                className={cn(
-                  'h-1 rounded-full transition-colors',
-                  done || active ? 'bg-accent' : 'bg-surface-elevated',
-                  active && running && 'progress-shimmer',
-                  failed && 'bg-critical/40',
-                )}
-              />
-              <p
-                className={cn(
-                  'mt-2 truncate font-mono text-[10px] tracking-wide uppercase',
-                  active ? 'text-accent' : done ? 'text-main' : 'text-dim',
-                )}
-              >
-                {stage.toLowerCase()}
-              </p>
-            </li>
-          )
-        })}
-      </ol>
-
-      <Progress
-        className="mt-4"
-        value={pct}
-        meta={`${pct.toFixed(0)}%`}
-        tone={failed ? 'critical' : running ? 'accent' : 'success'}
-      />
-
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <TelemetryCell
-          label="Pages"
-          value={
-            targetPages
-              ? `${pagesCrawled.toLocaleString()} / ${targetPages.toLocaleString()}`
-              : pagesCrawled.toLocaleString()
-          }
-        />
-        <TelemetryCell label="Analyzed" value={pagesAnalyzed.toLocaleString()} />
-        <TelemetryCell
-          label="Errors"
-          value={String(errorCount)}
-          tone="text-critical"
-        />
-        <TelemetryCell
-          label="Warnings"
-          value={String(warningCount)}
-          tone="text-warning"
-        />
-      </div>
-    </div>
+    </section>
   )
 }
 
@@ -173,13 +199,9 @@ function TelemetryCell({
   tone?: string
 }) {
   return (
-    <div className="rounded-lg border border-default bg-surface-low px-3 py-2.5">
-      <p className="font-mono text-[10px] tracking-wider text-dim uppercase">
-        {label}
-      </p>
-      <p className={cn('mt-1 font-mono text-sm font-semibold font-tabular', tone)}>
-        {value}
-      </p>
+    <div className="rounded-2xl bg-surface-low px-3 py-2.5 dark:bg-surface-elevated/50">
+      <dt className="text-[11px] font-medium text-dim">{label}</dt>
+      <dd className={cn('num mt-0.5 text-base font-bold', tone)}>{value}</dd>
     </div>
   )
 }

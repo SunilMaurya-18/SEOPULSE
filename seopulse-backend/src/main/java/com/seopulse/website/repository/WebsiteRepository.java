@@ -31,6 +31,10 @@ public interface WebsiteRepository extends JpaRepository<Website, Long> {
 
     long countByProjectId(Long projectId);
 
+    long countByProjectOrganizationIdAndStatusNot(Long organizationId, com.seopulse.website.entity.WebsiteStatus status);
+
+    java.util.List<Website> findByProjectOrganizationIdOrderByCreatedAtAsc(Long organizationId);
+
     @Query("""
             SELECT w.id
             FROM Website w

@@ -10,11 +10,11 @@ interface ProgressProps {
 }
 
 const tones = {
-  accent: 'bg-accent',
-  success: 'bg-success',
-  warning: 'bg-warning',
-  critical: 'bg-critical',
-  info: 'bg-info',
+  accent: 'from-[#ff8a65] to-accent',
+  success: 'from-[#a6f25b] to-success',
+  warning: 'from-[#ffd60a] to-warning',
+  critical: 'from-[#ff8a5c] to-critical',
+  info: 'from-[#5ac8fa] to-info',
 }
 
 export function Progress({
@@ -30,28 +30,20 @@ export function Progress({
   return (
     <div className={cn('space-y-1.5', className)}>
       {(label || meta) && (
-        <div className="flex items-center justify-between gap-2">
-          {label && (
-            <span className="font-mono text-[11px] tracking-wide text-muted uppercase">
-              {label}
-            </span>
-          )}
-          {meta && (
-            <span className="font-mono text-[11px] text-dim font-tabular">
-              {meta}
-            </span>
-          )}
+        <div className="flex items-center justify-between gap-2 text-xs">
+          {label && <span className="font-medium text-muted">{label}</span>}
+          {meta && <span className="font-semibold text-dim font-tabular">{meta}</span>}
         </div>
       )}
       <div
-        className="h-1.5 w-full overflow-hidden rounded bg-surface-elevated"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-surface-elevated"
         role="progressbar"
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}
         aria-valuemax={100}
       >
         <div
-          className={cn('h-full rounded transition-all duration-500', tones[tone])}
+          className={cn('h-full rounded-full bg-gradient-to-r transition-all duration-700 ease-out', tones[tone])}
           style={{ width: `${pct}%` }}
         />
       </div>

@@ -11,12 +11,18 @@ import java.util.regex.Pattern;
 
 /**
  * Records outgoing emails so tests can follow verification and reset links.
+ * Emails are queued in the outbox, so lookups flush it first.
  */
 public class CapturingEmailSender implements EmailSender {
 
     private static final Pattern TOKEN = Pattern.compile("[?&]token=([A-Za-z0-9_\\-]+)");
 
     private final List<EmailMessage> sent = new CopyOnWriteArrayList<>();
+    private final Runnable flushOutbox;
+
+    public CapturingEmailSender(Runnable flushOutbox) {
+        this.flushOutbox = flushOutbox;
+    }
 
     @Override
     public void send(EmailMessage message) {
@@ -24,6 +30,7 @@ public class CapturingEmailSender implements EmailSender {
     }
 
     public List<EmailMessage> sentTo(String email) {
+        flushOutbox.run();
         return sent.stream().filter(message -> message.to().equals(email)).toList();
     }
 

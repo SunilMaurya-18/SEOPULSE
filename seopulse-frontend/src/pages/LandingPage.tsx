@@ -1,18 +1,28 @@
-import { CapabilitiesSection } from '@/features/landing/components/CapabilitiesSection'
+import { useEffect } from 'react'
+
 import { FinalCtaSection } from '@/features/landing/components/FinalCtaSection'
 import { HeroSection } from '@/features/landing/components/HeroSection'
-import { HowItWorksSection } from '@/features/landing/components/HowItWorksSection'
 import { MarketingFooter } from '@/features/landing/components/MarketingFooter'
 import { MarketingHeader } from '@/features/landing/components/MarketingHeader'
+import { SolutionsSection } from '@/features/landing/components/SolutionsSection'
+import { StatsSection } from '@/features/landing/components/StatsSection'
+import { VisionSection } from '@/features/landing/components/VisionSection'
+import { smoothScrollTo } from '@/features/landing/useInView'
 
 export function LandingPage() {
+  useEffect(() => {
+    const id = window.location.hash.replace('#', '')
+    if (id) smoothScrollTo(id)
+  }, [])
+
   return (
-    <div className="min-h-screen bg-canvas font-sans text-sm text-main antialiased">
+    <div className="dark min-h-screen bg-[#05070a] font-mono text-base text-[#f2f5ea] antialiased">
       <MarketingHeader />
-      <main className="w-full pt-14">
+      <main>
         <HeroSection />
-        <HowItWorksSection />
-        <CapabilitiesSection />
+        <SolutionsSection />
+        <VisionSection />
+        <StatsSection />
         <FinalCtaSection />
       </main>
       <MarketingFooter />

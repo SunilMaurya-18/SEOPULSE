@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { cn } from '@/lib/cn'
 
 interface ScoreRingProps {
@@ -8,10 +9,16 @@ interface ScoreRingProps {
   label?: string
 }
 
-function scoreTone(score: number) {
-  if (score >= 80) return 'text-success'
-  if (score >= 60) return 'text-warning'
-  return 'text-critical'
+const GRADIENTS = {
+  good: ['#a6f25b', '#30d158'],
+  fair: ['#ffd60a', '#ff9f0a'],
+  poor: ['#ff8a5c', '#ff375f'],
+} as const
+
+function band(score: number): keyof typeof GRADIENTS {
+  if (score >= 80) return 'good'
+  if (score >= 60) return 'fair'
+  return 'poor'
 }
 
 function scoreGrade(score: number) {
@@ -22,26 +29,28 @@ function scoreGrade(score: number) {
   return 'F'
 }
 
-export function ScoreRing({
-  score,
-  size = 120,
-  strokeWidth = 10,
-  className,
-  label = 'score',
-}: ScoreRingProps) {
+export function ScoreRing({ score, size = 120, strokeWidth = 10, className, label = 'score' }: ScoreRingProps) {
+  const gradientId = `ring-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+
   if (score === null) {
     return (
       <div
-        className={cn(
-          'flex flex-col items-center justify-center rounded-full border border-dashed border-default text-dim',
-          className,
-        )}
+        className={cn('relative flex flex-col items-center justify-center rounded-full text-dim', className)}
         style={{ width: size, height: size }}
       >
-        <span className="font-display text-xl font-semibold">—</span>
-        <span className="font-mono text-[10px] tracking-wider uppercase">
-          pending
-        </span>
+        <svg width={size} height={size} className="absolute inset-0">
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={(size - strokeWidth) / 2}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-surface-elevated"
+          />
+        </svg>
+        <span className="num text-xl font-semibold">—</span>
+        <span className="text-[11px] font-medium">Pending</span>
       </div>
     )
   }
@@ -50,7 +59,7 @@ export function ScoreRing({
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (safeScore / 100) * circumference
-  const tone = scoreTone(safeScore)
+  const [from, to] = GRADIENTS[band(safeScore)]
 
   return (
     <div
@@ -59,44 +68,40 @@ export function ScoreRing({
       role="img"
       aria-label={`SEO health score ${Math.round(safeScore)} out of 100, grade ${scoreGrade(safeScore)}`}
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="-rotate-90"
-      >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor={from} />
+            <stop offset="100%" stopColor={to} />
+          </linearGradient>
+        </defs>
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={to} strokeOpacity={0.16} strokeWidth={strokeWidth} />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          className="text-surface-high"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="currentColor"
+          stroke={`url(#${gradientId})`}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className={cn('transition-all duration-700', tone)}
+          className="transition-all duration-1000 ease-out"
+          style={{ filter: `drop-shadow(0 0 ${strokeWidth / 2}px ${to}55)` }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-2xl font-semibold tracking-tight text-main font-tabular">
+        <span className="num text-[28px] leading-none font-bold text-main" style={{ fontSize: size * 0.24 }}>
           {Math.round(safeScore)}
         </span>
-        <span className="font-mono text-[10px] tracking-wider text-dim uppercase">
-          {label}
-        </span>
-        <span className={cn('mt-0.5 font-mono text-[10px] font-medium', tone)}>
-          Grade {scoreGrade(safeScore)}
-        </span>
+        {size >= 90 && (
+          <>
+            <span className="mt-1 text-[11px] font-medium text-dim capitalize">{label}</span>
+            <span className="mt-0.5 text-[11px] font-semibold" style={{ color: to }}>
+              Grade {scoreGrade(safeScore)}
+            </span>
+          </>
+        )}
       </div>
     </div>
   )

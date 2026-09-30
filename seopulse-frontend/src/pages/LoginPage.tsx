@@ -1,8 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Activity } from 'lucide-react'
 
 import { getErrorMessage } from '@/api/errors'
+import { Logo } from '@/components/brand/Logo'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -67,14 +67,7 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-accent text-white">
-              <Activity className="h-4 w-4" strokeWidth={2.25} />
-            </div>
-            <span className="font-display text-lg font-semibold text-main">
-              SEOPulse
-            </span>
-          </Link>
+          <Logo className="justify-center" />
           <h1 className="mt-6 font-display text-2xl font-semibold text-main">
             Sign in
           </h1>

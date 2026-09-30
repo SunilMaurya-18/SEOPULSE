@@ -1,5 +1,6 @@
 package com.seopulse.common.exception;
 
+import com.seopulse.billing.PlanLimitExceededException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -73,6 +74,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpServletRequest request
     ) {
         return problem(HttpStatus.UNAUTHORIZED, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(PlanLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handlePlanLimit(
+            PlanLimitExceededException exception,
+            HttpServletRequest request
+    ) {
+        ProblemDetail body = Problems.of(HttpStatus.PAYMENT_REQUIRED, exception.getMessage(), request.getRequestURI());
+        body.setProperty("code", "PLAN_LIMIT");
+        body.setProperty("meter", exception.getMeter());
+        body.setProperty("limit", exception.getLimit());
+        body.setProperty("used", exception.getUsed());
+        body.setProperty("upgradeTo", exception.getUpgradeTo());
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(body);
     }
 
     @ExceptionHandler(EmailNotVerifiedException.class)

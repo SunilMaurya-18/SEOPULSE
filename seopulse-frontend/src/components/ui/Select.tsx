@@ -14,28 +14,19 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   placeholder?: string
 }
 
-export function Select({
-  label,
-  hint,
-  error,
-  id,
-  options,
-  placeholder,
-  className,
-  ...props
-}: SelectProps) {
+export function Select({ label, hint, error, id, options, placeholder, className, ...props }: SelectProps) {
   return (
     <div className="space-y-1.5">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-main">
+        <label htmlFor={id} className="block text-[13px] font-medium text-main">
           {label}
         </label>
       )}
       <select
         id={id}
         className={cn(
-          'h-9 w-full rounded border bg-surface px-3 text-sm text-main',
-          'outline-none transition focus:border-focus focus:ring-1 focus:ring-accent/30',
+          'h-10 w-full rounded-[var(--sp-field-radius,0.25rem)] border bg-[var(--sp-field-bg,var(--sp-surface))] px-3.5 text-sm text-main',
+          'outline-none transition focus:border-accent/60 focus:ring-4 focus:ring-accent/15',
           error ? 'border-critical' : 'border-default',
           className,
         )}
@@ -54,7 +45,7 @@ export function Select({
         ))}
       </select>
       {error ? (
-        <p className="font-mono text-[11px] text-critical">{error}</p>
+        <p className="text-xs font-medium text-critical">{error}</p>
       ) : hint ? (
         <p className="text-xs text-muted">{hint}</p>
       ) : null}

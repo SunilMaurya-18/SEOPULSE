@@ -37,23 +37,27 @@ export function VerifyEmailBanner() {
   }
 
   return (
-    <div
-      role="status"
-      className="flex flex-wrap items-center justify-between gap-3 border-b border-warning/30 bg-warning-surface px-3 py-2 sm:px-5"
-    >
-      <p className="flex items-center gap-2 text-sm text-main">
-        <MailWarning className="h-4 w-4 shrink-0 text-warning" aria-hidden />
-        Verify your email address to start running audits.
-      </p>
-      <Button
-        size="sm"
-        variant="secondary"
-        loading={sending}
-        disabled={sent}
-        onClick={() => void handleResend()}
+    <div className="mx-auto w-full max-w-[1320px] px-4 pt-5 sm:px-6 lg:px-10">
+      <div
+        role="status"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-warning-surface px-4 py-3"
       >
-        {sent ? 'Email sent' : 'Resend verification email'}
-      </Button>
+        <p className="flex items-center gap-3 text-sm font-medium text-main">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-warning text-white">
+            <MailWarning className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          Verify your email address to start running audits.
+        </p>
+        <Button
+          size="sm"
+          variant="secondary"
+          loading={sending}
+          disabled={sent}
+          onClick={() => void handleResend()}
+        >
+          {sent ? 'Email sent' : 'Resend verification email'}
+        </Button>
+      </div>
     </div>
   )
 }

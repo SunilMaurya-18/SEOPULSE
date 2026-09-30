@@ -32,7 +32,7 @@ public class ProjectAccessService {
     ) {
 
         return projectRepository
-                .findByIdAndUserId(projectId, userId)
+                .findAccessible(projectId, userId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
                                 "Project not found"

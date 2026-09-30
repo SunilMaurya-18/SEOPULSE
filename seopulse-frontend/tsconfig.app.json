@@ -18,7 +18,9 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@designcodeio/threeui": ["./src/shaders/TextAnimationCollection.tsx"],
+      "@designcodeio/threeui/style.css": ["./src/shaders/threeui.css"]
     },
 
     /* Linting */

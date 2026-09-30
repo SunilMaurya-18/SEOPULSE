@@ -85,15 +85,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={toast.id}
               className={cn(
-                'pointer-events-auto animate-[toast-in_280ms_ease-out] rounded-xl border px-3.5 py-3 shadow-overlay backdrop-blur-md',
+                'pointer-events-auto animate-[toast-in_280ms_ease-out] rounded-2xl border px-3.5 py-3 shadow-overlay backdrop-blur-xl',
                 toneStyles[toast.tone],
               )}
             >
               <div className="flex items-start gap-3">
-                <Icon
-                  className={cn('mt-0.5 h-4 w-4 shrink-0', toneIconColor[toast.tone])}
-                />
-                <div className="min-w-0 flex-1">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-elevated/80">
+                  <Icon className={cn('h-4 w-4', toneIconColor[toast.tone])} />
+                </span>
+                <div className="min-w-0 flex-1 pt-0.5">
                   <p className="text-sm font-semibold text-main">{toast.title}</p>
                   {toast.description && (
                     <p className="mt-0.5 text-xs leading-5 text-muted">
@@ -103,7 +103,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 </div>
                 <button
                   type="button"
-                  className="rounded p-0.5 text-muted hover:text-main"
+                  className="rounded-full p-1 text-muted transition-colors hover:bg-surface-elevated hover:text-main"
                   onClick={() => dismiss(toast.id)}
                   aria-label="Dismiss"
                 >

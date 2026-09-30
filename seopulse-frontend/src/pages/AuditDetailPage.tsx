@@ -1,12 +1,18 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
+  ChevronRight,
+  Clock,
+  ExternalLink,
+  FileStack,
   FileText,
+  FileWarning,
   Info,
+  Layers,
+  Mail,
   RefreshCw,
+  ScanSearch,
   XCircle,
 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
@@ -18,18 +24,21 @@ import {
   useCancelAudit,
   useLiveAudit,
 } from '@/api/queries/audits'
+import { EmailReportDialog } from '@/features/dashboard/EmailReportDialog'
+import { formatDateTime, formatDuration, hostOf } from '@/lib/format'
 import { useToast } from '@/lib/toast'
 import { useWorkspace } from '@/lib/workspace'
 
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { CrawlProgress } from '@/components/ui/CrawlProgress'
 import { DownloadReportButton } from '@/components/ui/DownloadReportButton'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { PageHeader } from '@/components/ui/PageHeader'
+import { IconTile } from '@/components/ui/IconTile'
+import type { Tint } from '@/components/ui/tints'
 import { PageSkeleton } from '@/components/ui/Skeleton'
 import { ScoreRing } from '@/components/ui/ScoreRing'
+import { StatTile } from '@/components/ui/StatTile'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { cn } from '@/lib/cn'
 
@@ -39,6 +48,7 @@ export function AuditDetailPage() {
   const params = useParams<{ auditId: string }>()
   const auditId = Number(params.auditId)
   const validId = Number.isInteger(auditId) && auditId > 0
+  const [emailing, setEmailing] = useState(false)
 
   const auditQuery = useLiveAudit(projectId, auditId)
   const summaryQuery = useAuditSummary(projectId, auditId)
@@ -73,22 +83,21 @@ export function AuditDetailPage() {
       ? 'Invalid audit ID.'
       : getErrorMessage(auditQuery.error, 'Unable to load this audit. Please try again.')
     return (
-      <div className="space-y-6">
-        <Link
-          to="/audits"
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-main"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to audits
-        </Link>
+      <div className="widget">
         <EmptyState
+          icon={<FileWarning className="h-6 w-6" />}
           title="Audit unavailable"
           description={error}
           action={
-            <Button onClick={reload}>
-              <RefreshCw className="h-4 w-4" />
-              Try again
-            </Button>
+            <div className="flex gap-2">
+              <Link to="/audits">
+                <Button variant="secondary">All audits</Button>
+              </Link>
+              <Button onClick={reload}>
+                <RefreshCw className="h-4 w-4" />
+                Try again
+              </Button>
+            </div>
           }
         />
       </div>
@@ -100,67 +109,77 @@ export function AuditDetailPage() {
   const warningCount = summary?.warningCount ?? 0
   const infoCount = summary?.infoCount ?? 0
   const totalIssues = summary?.totalIssues ?? 0
+  const host = hostOf(audit.websiteUrl)
+  const issuesPath = `/audits/${audit.id}/issues`
 
   return (
-    <div className="space-y-6">
-      <Link
-        to="/audits"
-        className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-main"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to audits
-      </Link>
+    <div className="space-y-8">
+      <section className="widget relative p-6 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+          <div className="absolute -top-32 -right-24 h-80 w-80 rounded-full bg-accent/15 blur-3xl" />
+        </div>
+        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center">
+          <ScoreRing score={score} size={164} strokeWidth={13} className="mx-auto shrink-0 lg:mx-0" />
 
-      <PageHeader
-        eyebrow={`Audit #${audit.id}`}
-        title={audit.websiteUrl}
-        description="SEO audit report and analysis results."
-        action={
-          <>
-            <StatusBadge status={audit.status} />
-            <DownloadReportButton
-              projectId={projectId}
-              auditId={audit.id}
-              disabled={isActive}
-            />
-            {isActive && (
-              <Button
-                variant="secondary"
-                size="sm"
-                loading={cancelAudit.isPending}
-                onClick={handleCancel}
-              >
-                <XCircle className="h-3.5 w-3.5" />
-                Cancel audit
-              </Button>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={reload}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[13px] font-semibold text-accent">Audit #{audit.id}</p>
+              <StatusBadge status={audit.status} />
+            </div>
+            <h1 className="text-large-title mt-1.5 truncate text-main">{host}</h1>
+            <a
+              href={audit.websiteUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-1 inline-flex max-w-full items-center gap-1.5 text-[15px] text-muted transition-colors hover:text-accent"
             >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Refresh
-            </Button>
-          </>
-        }
-      />
+              <span className="truncate">{audit.websiteUrl}</span>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+            </a>
 
-      {/* Report meta strip */}
-      <div className="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-default bg-surface px-4 py-3 sm:px-5">
-        <MetaItem label="Created" value={formatDate(audit.createdAt)} />
-        <MetaItem
-          label="Started"
-          value={audit.startedAt ? formatDate(audit.startedAt) : '—'}
-        />
-        <MetaItem
-          label="Completed"
-          value={
-            audit.completedAt ? formatDate(audit.completedAt) : '—'
-          }
-        />
-        <MetaItem label="Website ID" value={String(audit.websiteId)} />
-      </div>
+            <dl className="mt-5 flex flex-wrap gap-2">
+              <MetaChip label="Started" value={formatDateTime(audit.startedAt ?? audit.createdAt)} />
+              <MetaChip label="Completed" value={formatDateTime(audit.completedAt)} />
+              <MetaChip label="Duration" value={formatDuration(audit.startedAt, audit.completedAt)} />
+            </dl>
+
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              <DownloadReportButton
+                projectId={projectId}
+                auditId={audit.id}
+                disabled={isActive}
+                variant="primary"
+                size="md"
+              />
+              {audit.status === 'COMPLETED' && (
+                <Button variant="secondary" onClick={() => setEmailing(true)}>
+                  <Mail className="h-4 w-4" />
+                  Email report
+                </Button>
+              )}
+              {isActive && (
+                <Button
+                  variant="secondary"
+                  loading={cancelAudit.isPending}
+                  onClick={handleCancel}
+                >
+                  <XCircle className="h-4 w-4" />
+                  Cancel audit
+                </Button>
+              )}
+              <button
+                type="button"
+                onClick={reload}
+                aria-label="Refresh"
+                title="Refresh"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-elevated text-muted transition-colors hover:bg-surface-high hover:text-main"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {audit.errorMessage && (
         <Alert variant="error" title="Audit error">
@@ -179,157 +198,162 @@ export function AuditDetailPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-4" padded>
-          <div className="flex flex-col items-center py-2">
-            <ScoreRing score={score} size={128} strokeWidth={9} />
-            <p className="mt-4 text-sm text-muted">SEO health score</p>
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-8 lg:grid-cols-2 xl:grid-cols-4">
-          <MetricTile
-            label="Pages crawled"
-            value={audit.pagesCrawled}
+      <section>
+        <h2 className="text-headline mb-3 px-1 text-main">Findings</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <SeverityTile
+            to={issuesPath}
+            label="Errors"
+            caption="Fix these first"
+            value={errorCount}
+            total={totalIssues}
+            tint="red"
+            bar="bg-critical"
+            icon={<AlertCircle />}
           />
-          <MetricTile
-            label="Pages analyzed"
-            value={audit.pagesAnalyzed}
+          <SeverityTile
+            to={issuesPath}
+            label="Warnings"
+            caption="Worth improving"
+            value={warningCount}
+            total={totalIssues}
+            tint="orange"
+            bar="bg-warning"
+            icon={<AlertTriangle />}
           />
-          <MetricTile label="Total issues" value={totalIssues} />
-          <MetricTile
-            label="Score"
-            value={score}
-            display={score === null ? '—' : String(score)}
+          <SeverityTile
+            to={issuesPath}
+            label="Notices"
+            caption="Good to know"
+            value={infoCount}
+            total={totalIssues}
+            tint="blue"
+            bar="bg-info"
+            icon={<Info />}
           />
         </div>
-      </div>
+      </section>
 
-      {/* Severity summary → issues */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <SeverityLink
-          to={`/audits/${audit.id}/issues`}
-          label="Errors"
-          value={errorCount}
-          tone="critical"
-          icon={<AlertCircle className="h-4 w-4" />}
-        />
-        <SeverityLink
-          to={`/audits/${audit.id}/issues`}
-          label="Warnings"
-          value={warningCount}
-          tone="warning"
-          icon={<AlertTriangle className="h-4 w-4" />}
-        />
-        <SeverityLink
-          to={`/audits/${audit.id}/issues`}
-          label="Information"
-          value={infoCount}
-          tone="info"
-          icon={<Info className="h-4 w-4" />}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatTile tint="purple" icon={<FileStack />} label="Pages crawled" value={audit.pagesCrawled.toLocaleString()} />
+        <StatTile tint="teal" icon={<ScanSearch />} label="Pages analyzed" value={audit.pagesAnalyzed.toLocaleString()} />
+        <StatTile tint="coral" icon={<Layers />} label="Total issues" value={totalIssues.toLocaleString()} />
+        <StatTile
+          tint="indigo"
+          icon={<Clock />}
+          label="Duration"
+          value={formatDuration(audit.startedAt, audit.completedAt)}
         />
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Link to={`/audits/${audit.id}/issues`}>
-          <Button variant="secondary">
-            View all issues
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
-        <Link to={`/audits/${audit.id}/pages`}>
-          <Button variant="secondary">
-            <FileText className="h-4 w-4" />
-            Pages inventory
-          </Button>
-        </Link>
-        {!isActive && (
-          <DownloadReportButton
-            projectId={projectId}
-            auditId={audit.id}
-            size="md"
+      <section>
+        <h2 className="mb-2 px-4 text-xs font-semibold tracking-[0.04em] text-dim uppercase">Explore</h2>
+        <div className="widget divide-y divide-default overflow-hidden">
+          <ExploreRow
+            to={issuesPath}
+            tint="orange"
+            icon={<FileWarning />}
+            label="All issues"
+            detail="Filter by severity, rule and URL"
+            value={totalIssues}
           />
-        )}
-      </div>
+          <ExploreRow
+            to={`/audits/${audit.id}/pages`}
+            tint="purple"
+            icon={<FileText />}
+            label="Pages inventory"
+            detail="HTTP status, metadata and on-page signals"
+            value={audit.pagesCrawled}
+          />
+        </div>
+      </section>
+
+      {emailing && (
+        <EmailReportDialog projectId={projectId} audit={audit} onClose={() => setEmailing(false)} />
+      )}
     </div>
   )
 }
 
-function MetaItem({ label, value }: { label: string; value: string }) {
+function MetaChip({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="font-mono text-[10px] tracking-wider text-dim uppercase">
-        {label}
-      </p>
-      <p className="mt-0.5 font-mono text-xs text-main font-tabular">
-        {value}
-      </p>
+    <div className="rounded-full bg-surface-low px-3.5 py-1.5 text-xs dark:bg-surface-elevated/60">
+      <dt className="inline text-dim">{label} </dt>
+      <dd className="inline font-semibold text-main font-tabular">{value}</dd>
     </div>
   )
 }
 
-function MetricTile({
-  label,
-  value,
-  display,
-}: {
-  label: string
-  value: number | null
-  display?: string
-}) {
-  return (
-    <div className="rounded-lg border border-default bg-surface p-4">
-      <p className="font-mono text-[10px] tracking-wider text-dim uppercase">
-        {label}
-      </p>
-      <p className="mt-2 font-display text-2xl font-semibold text-main font-tabular">
-        {display ?? (value ?? 0).toLocaleString()}
-      </p>
-    </div>
-  )
-}
-
-function SeverityLink({
+function SeverityTile({
   to,
   label,
+  caption,
   value,
-  tone,
+  total,
+  tint,
+  bar,
   icon,
 }: {
   to: string
   label: string
+  caption: string
   value: number
-  tone: 'critical' | 'warning' | 'info'
+  total: number
+  tint: Tint
+  bar: string
   icon: ReactNode
 }) {
-  const tones = {
-    critical: 'text-critical border-critical/20 hover:bg-critical-surface',
-    warning: 'text-warning border-warning/20 hover:bg-warning-surface',
-    info: 'text-info border-info/20 hover:bg-info-surface',
-  }
-
+  const share = total > 0 ? Math.round((value / total) * 100) : 0
   return (
     <Link
       to={to}
-      className={cn(
-        'group flex items-center justify-between rounded-lg border bg-surface p-4 transition-colors',
-        tones[tone],
-      )}
+      className="widget group block p-5 transition-transform duration-300 hover:-translate-y-0.5"
     >
-      <div>
-        <div className="flex items-center gap-2">
-          {icon}
-          <p className="text-sm font-medium text-main">{label}</p>
+      <div className="flex items-center gap-2.5">
+        <IconTile tint={tint}>{icon}</IconTile>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-semibold text-main">{label}</p>
+          <p className="text-xs text-dim">{caption}</p>
         </div>
-        <p className="mt-2 font-display text-2xl font-semibold font-tabular">
-          {value.toLocaleString()}
-        </p>
+        <ChevronRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:text-main" />
       </div>
-      <ArrowRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5 group-hover:text-main" />
+      <div className="mt-5 flex items-end justify-between">
+        <p className="num text-[34px] leading-none font-bold text-main">{value.toLocaleString()}</p>
+        <p className="text-xs font-semibold text-dim font-tabular">{share}% of issues</p>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-elevated">
+        <div className={cn('h-full rounded-full transition-all duration-700', bar)} style={{ width: `${share}%` }} />
+      </div>
     </Link>
   )
 }
 
-function formatDate(date: string) {
-  return new Date(date).toLocaleString()
+function ExploreRow({
+  to,
+  tint,
+  icon,
+  label,
+  detail,
+  value,
+}: {
+  to: string
+  tint: Tint
+  icon: ReactNode
+  label: string
+  detail: string
+  value: number
+}) {
+  return (
+    <Link to={to} className="group flex items-center gap-3.5 px-5 py-3.5 transition-colors hover:bg-surface-elevated/50">
+      <IconTile tint={tint} size="sm" className="h-[30px] w-[30px]">
+        {icon}
+      </IconTile>
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-main">{label}</p>
+        <p className="truncate text-xs text-dim">{detail}</p>
+      </div>
+      <span className="text-[15px] text-dim font-tabular">{value.toLocaleString()}</span>
+      <ChevronRight className="h-4 w-4 text-dim transition-transform group-hover:translate-x-0.5" />
+    </Link>
+  )
 }

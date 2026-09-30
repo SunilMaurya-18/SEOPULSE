@@ -18,15 +18,7 @@ const sizes = {
   lg: 'max-w-2xl',
 }
 
-export function Modal({
-  open,
-  onClose,
-  title,
-  description,
-  children,
-  className,
-  size = 'md',
-}: ModalProps) {
+export function Modal({ open, onClose, title, description, children, className, size = 'md' }: ModalProps) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -43,11 +35,11 @@ export function Modal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/45 backdrop-blur-[6px]"
         onClick={onClose}
       />
       <div
@@ -55,30 +47,28 @@ export function Modal({
         aria-modal="true"
         aria-labelledby="modal-title"
         className={cn(
-          'relative w-full rounded-xl border border-default bg-surface shadow-[var(--sp-overlay-shadow)]',
+          'animate-page-enter relative w-full rounded-[26px] border border-default bg-surface shadow-[var(--sp-overlay-shadow)]',
           sizes[size],
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-default px-5 py-4">
+        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-2">
           <div>
-            <h2 id="modal-title" className="font-display text-base font-semibold text-main">
+            <h2 id="modal-title" className="text-headline text-main">
               {title}
             </h2>
-            {description && (
-              <p className="mt-1 text-sm text-muted">{description}</p>
-            )}
+            {description && <p className="mt-1 text-[13px] leading-relaxed text-muted">{description}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1.5 text-dim hover:bg-surface-elevated hover:text-main"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-muted hover:text-main"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
           </button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="px-6 pt-3 pb-6">{children}</div>
       </div>
     </div>
   )

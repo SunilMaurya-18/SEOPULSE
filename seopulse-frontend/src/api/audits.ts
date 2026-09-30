@@ -210,4 +210,16 @@ export const auditApi = {
 
         return response.data
     },
+
+    emailReport: async (
+        projectId: number,
+        auditId: number,
+        payload: { recipients?: string[]; note?: string } = {},
+    ) => {
+        const response = await axios.post<{ recipients: number }>(
+            `/projects/${projectId}/audits/${auditId}/email`,
+            payload,
+        )
+        return response.data.recipients
+    },
 }

@@ -1,23 +1,22 @@
 import { useEffect, useState } from 'react'
-import { FileWarning, RefreshCw } from 'lucide-react'
+import { Activity, FileWarning, Globe, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { websiteApi, type Website } from '@/api/websites'
 import { auditApi, type Audit, type SeoIssue } from '@/api/audits'
+import { useAuditSummary } from '@/api/queries/audits'
+import { IssueGroups } from '@/features/issues/IssueGroups'
+import { severityTabs, type SeverityFilter } from '@/features/issues/severity'
+import { hostOf } from '@/lib/format'
 import { useWorkspace } from '@/lib/workspace'
 
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Input } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Select } from '@/components/ui/Select'
-import { SeverityBadge } from '@/components/ui/StatusBadge'
+import { PillSelect, SearchField } from '@/components/ui/PillSelect'
 import { Tabs } from '@/components/ui/Tabs'
-import { PageSkeleton, TableSkeleton } from '@/components/ui/Skeleton'
-
-type SeverityFilter = 'ALL' | 'ERROR' | 'WARNING' | 'INFO'
+import { CardSkeleton, PageSkeleton } from '@/components/ui/Skeleton'
 
 export function IssuesPage() {
   const { projectId } = useWorkspace()
@@ -31,6 +30,7 @@ export function IssuesPage() {
   const [loading, setLoading] = useState(true)
   const [loadingIssues, setLoadingIssues] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const summary = useAuditSummary(projectId, auditId ? Number(auditId) : NaN)
 
   useEffect(() => {
     async function init() {
@@ -86,7 +86,7 @@ export function IssuesPage() {
           projectId,
           Number(auditId),
           0,
-          50,
+          100,
           severity === 'ALL' ? undefined : severity,
         )
         setIssues(res.content ?? [])
@@ -109,20 +109,27 @@ export function IssuesPage() {
     )
   })
 
+  const counts = summary.data
+    ? {
+        total: summary.data.totalIssues,
+        errors: summary.data.errorCount,
+        warnings: summary.data.warningCount,
+        info: summary.data.infoCount,
+      }
+    : null
+
   if (loading) return <PageSkeleton />
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <PageHeader
         eyebrow="Issues"
         title="SEO issues"
-        description="Filter and triage findings across audits by severity and rule."
+        description="Everything the crawler flagged, grouped by rule so you can fix it once."
         action={
           auditId ? (
             <Link to={`/audits/${auditId}`}>
-              <Button variant="secondary" size="sm">
-                Open audit report
-              </Button>
+              <Button variant="secondary">Open audit report</Button>
             </Link>
           ) : undefined
         }
@@ -135,9 +142,9 @@ export function IssuesPage() {
       )}
 
       {websites.length === 0 ? (
-        <Card>
+        <div className="widget">
           <EmptyState
-            icon={<FileWarning className="h-5 w-5" />}
+            icon={<FileWarning className="h-6 w-6" />}
             title="No websites to inspect"
             description="Add a website and run an audit before reviewing issues."
             action={
@@ -146,108 +153,86 @@ export function IssuesPage() {
               </Link>
             }
           />
-        </Card>
+        </div>
       ) : (
         <>
-          <Card padded>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Select
-                label="Website"
-                value={websiteId}
-                onChange={(e) => setWebsiteId(e.target.value)}
-                options={websites.map((w) => ({
-                  value: String(w.id),
-                  label: w.url,
-                }))}
-              />
-              <Select
-                label="Audit"
-                value={auditId}
-                onChange={(e) => setAuditId(e.target.value)}
-                options={audits.map((a) => ({
-                  value: String(a.id),
-                  label: `#${a.id} · ${a.status}${a.score != null ? ` · ${a.score}` : ''}`,
-                }))}
-                placeholder={audits.length === 0 ? 'No audits' : undefined}
-              />
-              <Input
-                label="Search"
-                placeholder="Rule, URL, or message…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-          </Card>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <PillSelect
+              label="Website"
+              icon={<Globe />}
+              value={websiteId}
+              onChange={(e) => setWebsiteId(e.target.value)}
+              options={websites.map((w) => ({ value: String(w.id), label: w.name || hostOf(w.url) }))}
+              className="lg:max-w-[260px]"
+            />
+            <PillSelect
+              label="Audit"
+              icon={<Activity />}
+              value={auditId}
+              onChange={(e) => setAuditId(e.target.value)}
+              options={audits.map((a) => ({
+                value: String(a.id),
+                label: `#${a.id}${a.score != null ? ` · Score ${a.score}` : ` · ${a.status.toLowerCase()}`}`,
+              }))}
+              placeholder={audits.length === 0 ? 'No audits' : undefined}
+              className="lg:max-w-[240px]"
+            />
+            <SearchField
+              label="Search issues"
+              placeholder="Search rule, URL, or message"
+              value={query}
+              onChange={setQuery}
+              className="lg:ml-auto lg:w-72"
+            />
+          </div>
 
-          <Card>
-            <div className="px-4 pt-2 sm:px-5">
-              <Tabs
-                value={severity}
-                onChange={(id) => setSeverity(id as SeverityFilter)}
-                items={[
-                  { id: 'ALL', label: 'All' },
-                  { id: 'ERROR', label: 'Errors' },
-                  { id: 'WARNING', label: 'Warnings' },
-                  { id: 'INFO', label: 'Info' },
-                ]}
-              />
-            </div>
+          <Tabs
+            value={severity}
+            onChange={(id) => setSeverity(id as SeverityFilter)}
+            items={severityTabs(counts)}
+          />
 
-            {loadingIssues ? (
-              <TableSkeleton rows={6} />
-            ) : filtered.length === 0 ? (
+          {loadingIssues ? (
+            <div className="space-y-3">
+              <CardSkeleton />
+              <CardSkeleton />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="widget">
               <EmptyState
-                icon={<FileWarning className="h-5 w-5" />}
-                title="No issues match"
+                icon={<FileWarning className="h-6 w-6" />}
+                title={auditId ? 'No issues match' : 'No audits yet'}
                 description={
-                  severity === 'ALL'
-                    ? 'This audit has no detected issues, or none match your search.'
-                    : 'Try another severity filter or clear search.'
+                  !auditId
+                    ? 'Run an audit for this website to see its findings.'
+                    : severity === 'ALL' && !query.trim()
+                      ? 'This audit has no detected issues.'
+                      : 'Try another severity filter or clear the search.'
                 }
                 action={
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      setQuery('')
-                      setSeverity('ALL')
-                    }}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Reset filters
-                  </Button>
+                  auditId ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setQuery('')
+                        setSeverity('ALL')
+                      }}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Reset filters
+                    </Button>
+                  ) : (
+                    <Link to={`/audits?websiteId=${websiteId}`}>
+                      <Button size="sm">Go to audits</Button>
+                    </Link>
+                  )
                 }
               />
-            ) : (
-              <ul className="divide-y divide-default/60">
-                {filtered.map((issue) => (
-                  <li key={issue.id} className="px-4 py-4 sm:px-5">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <SeverityBadge severity={issue.severity} />
-                          <span className="font-mono text-[11px] text-dim">
-                            {issue.ruleCode}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-sm font-medium text-main">
-                          {issue.message}
-                        </p>
-                        <p className="mt-1 truncate font-mono text-xs text-muted">
-                          {issue.url}
-                        </p>
-                        {issue.recommendation && (
-                          <p className="mt-2 text-sm leading-6 text-muted">
-                            {issue.recommendation}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
+            </div>
+          ) : (
+            <IssueGroups issues={filtered} />
+          )}
         </>
       )}
     </div>

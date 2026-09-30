@@ -92,6 +92,9 @@ public class SecurityConfig {
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
 
+                                .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhook")
+                                .permitAll()
+
                                 // Health checks and metrics scraping. In prod the
                                 // actuator runs on an internal-only port.
                                 .requestMatchers(

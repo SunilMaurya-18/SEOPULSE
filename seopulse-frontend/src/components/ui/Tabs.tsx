@@ -17,10 +17,7 @@ export function Tabs({ items, value, onChange, className }: TabsProps) {
   return (
     <div
       role="tablist"
-      className={cn(
-        'flex flex-wrap gap-1 border-b border-default',
-        className,
-      )}
+      className={cn('inline-flex max-w-full flex-wrap gap-0.5 rounded-[11px] bg-surface-elevated p-[3px]', className)}
     >
       {items.map((item) => {
         const active = item.id === value
@@ -32,20 +29,18 @@ export function Tabs({ items, value, onChange, className }: TabsProps) {
             aria-selected={active}
             onClick={() => onChange(item.id)}
             className={cn(
-              '-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm transition-colors',
+              'inline-flex h-8 items-center gap-1.5 rounded-[8px] px-3.5 text-[13px] font-medium transition-all',
               active
-                ? 'border-accent font-medium text-main'
-                : 'border-transparent text-muted hover:text-main',
+                ? 'bg-surface text-main shadow-[0_1px_3px_rgb(0_0_0/0.12),0_0_0_0.5px_rgb(0_0_0/0.04)] dark:bg-surface-high'
+                : 'text-muted hover:text-main',
             )}
           >
             {item.label}
             {typeof item.count === 'number' && (
               <span
                 className={cn(
-                  'rounded border px-1.5 py-0 font-mono text-[10px]',
-                  active
-                    ? 'border-accent/30 bg-accent-surface text-accent'
-                    : 'border-default bg-surface-elevated text-dim',
+                  'rounded-full px-1.5 text-[11px] font-semibold font-tabular',
+                  active ? 'bg-accent-surface text-accent' : 'text-dim',
                 )}
               >
                 {item.count}

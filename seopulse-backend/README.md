@@ -87,7 +87,7 @@ Common keys:
 | `JWT_SECRET` | HMAC signing secret (required) |
 | `SEOPULSE_AUTH_ACCESS_TOKEN_TTL` / `SEOPULSE_AUTH_REFRESH_TOKEN_TTL` | Access token (`15m`) and refresh cookie (`30d`) lifetimes |
 | `SEOPULSE_AUTH_REFRESH_COOKIE_SECURE` | `Secure` flag on the refresh cookie (`true`; `false` in `dev`) |
-| `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION` | Block audits for unverified accounts (`true`) |
+| `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION` | Block audits for unverified accounts (`false`, currently disabled) |
 | `SEOPULSE_AUTH_BREACHED_PASSWORD_CHECK` | Check new passwords against HIBP (`true`) |
 | `SEOPULSE_APP_BASE_URL` | Frontend origin used in email links |
 | `SEOPULSE_RATE_LIMIT_ENABLED` | Redis-backed rate limiting (`true`) |

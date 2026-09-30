@@ -1,5 +1,6 @@
 package com.seopulse.project.entity;
 
+import com.seopulse.organization.entity.Organization;
 import com.seopulse.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,6 +37,10 @@ public class Project {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "organization_id", nullable = false)
+    private Organization organization;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

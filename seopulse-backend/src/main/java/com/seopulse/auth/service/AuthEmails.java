@@ -1,8 +1,8 @@
 package com.seopulse.auth.service;
 
 import com.seopulse.auth.config.AuthProperties;
-import com.seopulse.common.email.EmailMessage;
-import com.seopulse.common.email.EmailSender;
+import com.seopulse.notification.EmailOutboxService;
+import com.seopulse.notification.EmailTemplates;
 import com.seopulse.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,74 +16,43 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 public class AuthEmails {
 
-    private final EmailSender emailSender;
+    private final EmailOutboxService emailOutboxService;
     private final AuthProperties properties;
 
     public void sendVerification(User user, String rawToken) {
-        send(new EmailMessage(
-                user.getEmail(),
-                "Verify your SEOPulse email address",
-                """
-                Hi %s,
-
-                Confirm your email address to start running audits:
-                %s
-
-                The link expires in %d hours. If you did not create an account, ignore this email.
-                """.formatted(
-                        user.getName(),
-                        link("/verify-email", rawToken),
-                        properties.getEmailVerificationTtl().toHours()
-                )
-        ));
+        String url = link("/verify-email", rawToken);
+        String text = "Hi %s, confirm your email to start audits: %s".formatted(user.getName(), url);
+        enqueue(user.getEmail(), "Verify your SEOPulse email address", text,
+                EmailTemplates.html("Verify your email", text, "Verify email", url));
     }
 
     public void sendPasswordReset(User user, String rawToken) {
-        send(new EmailMessage(
-                user.getEmail(),
-                "Reset your SEOPulse password",
-                """
-                Hi %s,
-
-                Reset your password with this link:
-                %s
-
-                The link expires in %d minutes and can be used once. If you did not ask for this, ignore this email.
-                """.formatted(
-                        user.getName(),
-                        link("/reset-password", rawToken),
-                        properties.getPasswordResetTtl().toMinutes()
-                )
-        ));
+        String url = link("/reset-password", rawToken);
+        String text = "Hi %s, reset your password: %s".formatted(user.getName(), url);
+        enqueue(user.getEmail(), "Reset your SEOPulse password", text,
+                EmailTemplates.html("Reset your password", text, "Reset password", url));
     }
 
     public void sendAccountLocked(User user) {
-        send(new EmailMessage(
-                user.getEmail(),
-                "SEOPulse sign-in temporarily locked",
-                """
-                Hi %s,
-
-                We locked sign-in to your account for %d minutes after %d failed attempts.
-                If this wasn't you, reset your password: %s
-                """.formatted(
-                        user.getName(),
-                        properties.getLockoutDuration().toMinutes(),
-                        properties.getMaxFailedLogins(),
-                        properties.getAppBaseUrl() + "/forgot-password"
-                )
-        ));
+        String url = properties.getAppBaseUrl() + "/forgot-password";
+        String text = "Hi %s, sign-in is locked for %d minutes. Reset your password: %s".formatted(
+                user.getName(),
+                properties.getLockoutDuration().toMinutes(),
+                url
+        );
+        enqueue(user.getEmail(), "SEOPulse sign-in temporarily locked", text,
+                EmailTemplates.html("Sign-in locked", text, "Reset password", url));
     }
 
     private String link(String path, String rawToken) {
         return properties.getAppBaseUrl() + path + "?token=" + URLEncoder.encode(rawToken, StandardCharsets.UTF_8);
     }
 
-    private void send(EmailMessage message) {
+    private void enqueue(String to, String subject, String text, String html) {
         try {
-            emailSender.send(message);
+            emailOutboxService.enqueue(to, subject, text, html);
         } catch (RuntimeException ex) {
-            log.error("Failed to send email: subject={}", message.subject(), ex);
+            log.error("Failed to queue email: subject={}", subject, ex);
         }
     }
 }
