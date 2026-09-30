@@ -4,6 +4,7 @@ import com.seopulse.common.exception.RateLimitExceededException;
 import com.seopulse.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 import java.time.Duration;
 import java.util.List;
@@ -16,6 +17,9 @@ class RateLimiterIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private RateLimiter rateLimiter;
+
+    @Autowired
+    private LettuceConnectionFactory connectionFactory;
 
     @Test
     void bucketsAreSharedInRedisAndReportRetryAfter() {
@@ -63,5 +67,19 @@ class RateLimiterIntegrationTest extends AbstractIntegrationTest {
             assertThat(rateLimiter.tryConsume("test-multi", identity, limits).allowed()).isTrue();
         }
         assertThat(rateLimiter.tryConsume("test-multi", identity, limits).allowed()).isFalse();
+    }
+
+    @Test
+    void survivesARestartOfTheRedisConnectionFactory() {
+
+        List<RateLimitProperties.Limit> limits = List.of(new RateLimitProperties.Limit(1, Duration.ofHours(1)));
+        rateLimiter.tryConsume("test-restart", UUID.randomUUID().toString(), limits);
+
+        connectionFactory.stop();
+        connectionFactory.start();
+
+        String identity = UUID.randomUUID().toString();
+        assertThat(rateLimiter.tryConsume("test-restart", identity, limits).allowed()).isTrue();
+        assertThat(rateLimiter.tryConsume("test-restart", identity, limits).allowed()).isFalse();
     }
 }

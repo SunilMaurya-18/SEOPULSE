@@ -46,7 +46,7 @@ public class RateLimiter {
     private final LettuceConnectionFactory connectionFactory;
 
     private volatile ProxyManager<String> proxyManager;
-    private StatefulRedisConnection<String, byte[]> connection;
+    private volatile StatefulRedisConnection<String, byte[]> connection;
     private volatile Instant lastFailureLog = Instant.EPOCH;
 
     public RateLimiter(RateLimitProperties properties, LettuceConnectionFactory connectionFactory) {
@@ -104,12 +104,17 @@ public class RateLimiter {
     private ProxyManager<String> proxyManager() {
 
         ProxyManager<String> manager = proxyManager;
-        if (manager != null) {
+        StatefulRedisConnection<String, byte[]> current = connection;
+        if (manager != null && current != null && current.isOpen()) {
             return manager;
         }
 
         synchronized (this) {
-            if (proxyManager == null) {
+            // Restarting the connection factory shuts down its client, which closes this connection.
+            if (proxyManager == null || connection == null || !connection.isOpen()) {
+                if (connection != null) {
+                    connection.close();
+                }
                 AbstractRedisClient nativeClient = connectionFactory.getRequiredNativeClient();
                 if (!(nativeClient instanceof RedisClient redisClient)) {
                     throw new IllegalStateException("Rate limiting requires a standalone Redis client");

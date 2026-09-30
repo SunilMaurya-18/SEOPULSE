@@ -158,7 +158,8 @@ public class AuditWorker {
                 } catch (TimeoutException ignored) {
                     AuditStatus status = auditRepository.findStatusById(auditId).orElse(AuditStatus.CANCELLED);
 
-                    if (!RUNNING.contains(status)) {
+                    // Analysis writes COMPLETED just before the pipeline returns.
+                    if (!RUNNING.contains(status) && status != AuditStatus.COMPLETED) {
                         pipeline.cancel(true);
                         log.info("Audit stopped while running: auditId={}, status={}", auditId, status);
                         return finished(auditId, Result.CANCELLED, status, startedAt);
