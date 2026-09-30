@@ -316,7 +316,7 @@ No migration creates the `websites` table, and `V2__create_audits_table.sql` ref
 
 ### Exit criteria
 
-- [ ] CI is green, with at least 60% line coverage on `website.seo`, `website.service`, `website.crawler` and `auth`. *(Locally, `mvn verify` passes with 174 tests and the JaCoCo gate enforced. Phase 3 added `.github/workflows/ci.yml`, which runs the same gate; tick this once it is green on GitHub.)*
+- [x] CI is green, with at least 60% line coverage on `website.seo`, `website.service`, `website.crawler` and `auth`. *(Green on GitHub: backend with 175 tests and the JaCoCo gate, frontend, and the E2E smoke test with the backup drill. The first run exposed a rate limiter that stayed failed open after its Redis client restarted, and a race that reported a finished audit as cancelled; both are fixed.)*
 - [x] Two worker containers process audits concurrently without double-processing, verified by an integration test. *(`AuditWorkerIntegrationTest.duplicateDeliveriesProcessTheAuditOnce`: two concurrent workers get the same audit, one completes and the other skips.)*
 - [x] A stolen, already-rotated refresh token revokes the session family. *(`AuthLifecycleIntegrationTest.refreshRotatesTokenAndDetectsReuse`.)*
 - [x] Login returns 429 after the configured number of attempts. *(`AuthLifecycleIntegrationTest.loginIsRateLimitedPerClient`.)*
@@ -389,7 +389,7 @@ No migration creates the `websites` table, and `V2__create_audits_table.sql` ref
 
 ### Exit criteria
 
-- [ ] Merging to `main` deploys to `staging.<domain>` over HTTPS with no manual steps. *(Needs the VPS, DNS and GitHub environments from `deploy/README.md`. Locally the same stack passes the smoke test through Caddy on HTTPS.)*
+- [ ] Merging to `main` deploys to `staging.<domain>` over HTTPS with no manual steps. *(On GitHub, a push to `main` now runs CI, the E2E stack, Trivy and the GHCR push successfully; the staging job then stops because the `staging` environment has no `DEPLOY_*` secrets yet. Needs the VPS, DNS and GitHub environments from `deploy/README.md`.)*
 - [ ] Tagging `v0.1.0` deploys to production after approval, and a failing health check rolls back automatically. *(The rollback in `deploy.sh` is verified locally; the tag-to-production run needs the servers.)*
 - [ ] A restore from last night's backup into staging succeeds and the app boots against it. *(The backup and restore scripts pass end to end locally and in CI; the staging drill waits for staging.)*
 - [ ] `nmap` from outside shows only ports 22, 80 and 443 open. *(Enforced by `bootstrap-host.sh` and the Compose file; check it once the server exists.)*
