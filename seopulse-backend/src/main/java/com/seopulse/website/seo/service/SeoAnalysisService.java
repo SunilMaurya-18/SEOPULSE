@@ -2,15 +2,21 @@ package com.seopulse.website.seo.service;
 
 import com.seopulse.website.entity.AuditPage;
 import com.seopulse.website.seo.analyzer.SeoAnalyzer;
+import com.seopulse.website.seo.analyzer.site.SiteIssue;
 import com.seopulse.website.seo.entity.SeoIssue;
 import com.seopulse.website.seo.model.SeoIssueResult;
 import com.seopulse.website.seo.repository.SeoIssueRepository;
+import com.seopulse.website.seo.rules.IssueFingerprint;
+import com.seopulse.website.seo.rules.RuleCatalog;
+import com.seopulse.website.seo.rules.RuleDefinition;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -18,13 +24,16 @@ public class SeoAnalysisService {
 
     private final List<SeoAnalyzer> analyzers;
     private final SeoIssueRepository seoIssueRepository;
+    private final RuleCatalog ruleCatalog;
 
     public SeoAnalysisService(
             List<SeoAnalyzer> analyzers,
-            SeoIssueRepository seoIssueRepository
+            SeoIssueRepository seoIssueRepository,
+            RuleCatalog ruleCatalog
     ) {
         this.analyzers = analyzers;
         this.seoIssueRepository = seoIssueRepository;
+        this.ruleCatalog = ruleCatalog;
     }
 
     @Transactional
@@ -35,6 +44,7 @@ public class SeoAnalysisService {
         seoIssueRepository.deleteByAuditPageId(page.getId());
         List<SeoIssue> savedIssues =
                 new ArrayList<>();
+        Set<String> seenRules = new HashSet<>();
 
         for (SeoAnalyzer analyzer : analyzers) {
 
@@ -52,28 +62,13 @@ public class SeoAnalysisService {
             }
 
             for (SeoIssueResult result : results) {
-
-                SeoIssue issue =
-                        SeoIssue.builder()
-                                .auditPage(page)
-                                .ruleCode(result.ruleCode())
-                                .severity(result.severity())
-                                .message(result.message())
-                                .recommendations(
-                                        buildRecommendation(
-                                                result.ruleCode()
-                                        )
-                                )
-                                .build();
-
-                SeoIssue saved =
-                        seoIssueRepository.save(issue);
-
-                savedIssues.add(saved);
+                if (seenRules.add(result.ruleCode())) {
+                    savedIssues.add(seoIssueRepository.save(toEntity(page, result)));
+                }
             }
         }
 
-        log.info(
+        log.debug(
                 "SEO analysis completed: page={}, issues={}",
                 page.getUrl(),
                 savedIssues.size()
@@ -82,56 +77,37 @@ public class SeoAnalysisService {
         return savedIssues;
     }
 
-    private String buildRecommendation(
-            String ruleCode
-    ) {
+    /**
+     * Saves site-level findings. A page has at most one issue per rule, so
+     * findings for a rule the page already has are skipped.
+     */
+    @Transactional
+    public int saveSiteIssues(Long auditId, List<SiteIssue> issues) {
 
-        return switch (ruleCode) {
+        Set<String> existing = new HashSet<>(seoIssueRepository.findPageRuleKeysByAuditId(auditId));
+        int saved = 0;
 
-            case "TITLE_MISSING" ->
-                    "Add a unique and descriptive title to the page.";
+        for (SiteIssue issue : issues) {
+            String key = issue.page().getId() + "|" + issue.result().ruleCode();
+            if (existing.add(key)) {
+                seoIssueRepository.save(toEntity(issue.page(), issue.result()));
+                saved++;
+            }
+        }
 
-            case "TITLE_TOO_SHORT" ->
-                    "Make the page title more descriptive.";
+        return saved;
+    }
 
-            case "TITLE_TOO_LONG" ->
-                    "Shorten the page title.";
-
-            case "META_DESCRIPTION_MISSING" ->
-                    "Add a unique meta description.";
-
-            case "META_DESCRIPTION_TOO_SHORT" ->
-                    "Expand the meta description to provide useful page context.";
-
-            case "META_DESCRIPTION_TOO_LONG" ->
-                    "Shorten the meta description.";
-
-            case "H1_MISSING" ->
-                    "Add a clear primary H1 heading.";
-
-            case "MULTIPLE_H1" ->
-                    "Review the page structure and keep a clear primary H1.";
-
-            case "CANONICAL_MISSING" ->
-                    "Add a canonical URL when appropriate.";
-
-            case "HTTP_4XX" ->
-                    "Fix the broken or inaccessible page.";
-
-            case "HTTP_5XX" ->
-                    "Investigate the server error.";
-
-            case "LOW_WORD_COUNT" ->
-                    "Review whether the page provides sufficient useful content.";
-
-            case "IMAGE_ALT_MISSING" ->
-                    "Add meaningful alt text to informative images.";
-
-            case "NO_INTERNAL_LINKS" ->
-                    "Add relevant internal links to help users and search engines discover related content.";
-
-            default ->
-                    "Review this SEO issue and make the recommended improvement.";
-        };
+    private SeoIssue toEntity(AuditPage page, SeoIssueResult result) {
+        RuleDefinition rule = ruleCatalog.get(result.ruleCode(), result.severity());
+        return SeoIssue.builder()
+                .auditPage(page)
+                .ruleCode(result.ruleCode())
+                .severity(result.severity())
+                .message(result.message())
+                .recommendations(rule.recommendation())
+                .category(rule.category().name())
+                .fingerprint(IssueFingerprint.of(result.ruleCode(), page.getUrl()))
+                .build();
     }
 }

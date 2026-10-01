@@ -90,6 +90,10 @@ public class AuditPage {
     @Column(name = "skip_reason", length = 500)
     private String skipReason;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "signals", columnDefinition = "jsonb")
+    private PageSignals signals;
+
     @Column(name = "crawled_at")
     private Instant crawledAt;
 

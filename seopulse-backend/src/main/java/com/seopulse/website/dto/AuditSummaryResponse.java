@@ -3,6 +3,7 @@ package com.seopulse.website.dto;
 import com.seopulse.website.entity.AuditStatus;
 
 import java.time.Instant;
+import java.util.Map;
 
 public record AuditSummaryResponse(
 
@@ -30,6 +31,13 @@ public record AuditSummaryResponse(
 
         Instant startedAt,
 
-        Instant completedAt
+        Instant completedAt,
+
+        Map<String, Integer> categoryScores,
+
+        Integer scoreVersion,
+
+        /* True once retention removed the page-level details; counts still apply. */
+        boolean detailsPurged
 
 ) {}

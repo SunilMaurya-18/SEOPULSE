@@ -2,6 +2,8 @@ package com.seopulse.organization.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 
@@ -26,6 +28,13 @@ public class Organization {
 
     @Column(name = "stripe_customer_id")
     private String stripeCustomerId;
+
+    @Column(name = "alert_defaults_applied", nullable = false)
+    private boolean alertDefaultsApplied;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "branding", columnDefinition = "jsonb")
+    private OrganizationBranding branding;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

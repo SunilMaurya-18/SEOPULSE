@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { CreditCard, Gauge, Globe2, Mail, UserPlus, Users } from 'lucide-react'
+import { CalendarClock, CreditCard, Gauge, Globe2, Mail, UserPlus, Users } from 'lucide-react'
 
 import { saasApi, type BillingSnapshot, type Organization, type OrgInvite, type OrgMember } from '@/api/saas'
 import { getErrorMessage } from '@/api/errors'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/cn'
+import { AlertSettings } from './AlertSettings'
+import { BrandingSettings } from './BrandingSettings'
 import { SettingsGroup, SettingsRow } from './SettingsGroup'
 
 function Meter({ used, limit }: { used: number; limit: number }) {
@@ -141,7 +143,20 @@ export function WorkspacePlan() {
         <SettingsRow icon={<Gauge className="h-4 w-4" />} tint="from-[#4ee37a] to-[#28b14c]" label="Audits this month">
           <Meter used={billing.auditsUsed} limit={billing.limits.auditsPerMonth} />
         </SettingsRow>
+        <SettingsRow
+          icon={<CalendarClock className="h-4 w-4" />}
+          tint="from-[#ffb340] to-[#ff9500]"
+          label="Scheduled audits"
+          detail={`Audit history details kept for ${billing.limits.retentionDays} days`}
+        >
+          <span className="text-[15px] text-dim">
+            {billing.limits.schedule === 'NONE' ? 'Not included' : billing.limits.schedule === 'DAILY' ? 'Daily' : 'Weekly'}
+          </span>
+        </SettingsRow>
       </SettingsGroup>
+
+      <AlertSettings org={org} limits={billing.limits} />
+      <BrandingSettings org={org} />
 
       <SettingsGroup
         id="team"

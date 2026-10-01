@@ -119,6 +119,7 @@ public class WebsiteCrawler {
         private final HostThrottle throttle = new HostThrottle();
         private final Map<String, BaseRobotRules> robotsByOrigin = new ConcurrentHashMap<>();
         private final Set<String> visited = ConcurrentHashMap.newKeySet();
+        private final Set<String> sitemapUrls = ConcurrentHashMap.newKeySet();
         private final Queue<CrawledPage> pages = new ConcurrentLinkedQueue<>();
         private final BlockingQueue<CrawlTarget> frontier = new LinkedBlockingQueue<>();
         private final AtomicInteger pending = new AtomicInteger();
@@ -151,7 +152,37 @@ public class WebsiteCrawler {
             seedFromSitemaps();
             runWorkers();
 
-            return new CrawlResult(List.copyOf(pages), timedOut.get());
+            return new CrawlResult(List.copyOf(pages), timedOut.get(), Set.copyOf(sitemapUrls), checkHttpsEnforced());
+        }
+
+        /**
+         * One request to the http:// version of the start page: a redirect to
+         * https:// means HTTPS is enforced. Null when it cannot be determined.
+         */
+        private Boolean checkHttpsEnforced() throws InterruptedException {
+
+            URI start = URI.create(startFinalUrl);
+
+            if (!"https".equalsIgnoreCase(start.getScheme())) {
+                return Boolean.FALSE;
+            }
+
+            if (deadlinePassed() || !properties.getAllowedPorts().contains(80)) {
+                return null;
+            }
+
+            try {
+                URI plain = urlValidator.validateStructure(
+                        new URI("http", null, start.getHost(), -1, start.getRawPath(), null, null).toString());
+                pageGate(plain);
+                FetchResponse response = httpClient.fetch(plain, HTML_ACCEPT, 0, contentType -> false);
+                if (response.isRedirect() && response.location() != null) {
+                    return plain.resolve(response.location().trim()).getScheme().equalsIgnoreCase("https");
+                }
+                return response.isSuccess() ? Boolean.FALSE : null;
+            } catch (CrawlDeadlineException | IOException | IllegalArgumentException | java.net.URISyntaxException ex) {
+                return null;
+            }
         }
 
         private void seedFromSitemaps() throws InterruptedException {
@@ -175,6 +206,7 @@ public class WebsiteCrawler {
                         this::pageGate
                 );
 
+                sitemapUrls.addAll(urls);
                 urls.forEach(url -> enqueue(url, 1));
 
                 log.debug("Seeded {} URLs from sitemaps: startUrl={}", urls.size(), startFinalUrl);
@@ -417,7 +449,12 @@ public class WebsiteCrawler {
                     content.internalLinks(),
                     null,
                     null,
-                    null
+                    null,
+                    content.signals().withResponse(
+                            response.xRobotsTag(),
+                            response.body().length,
+                            response.strictTransportSecurity()
+                    )
             ));
 
             if (depth < properties.getMaxDepth()) {

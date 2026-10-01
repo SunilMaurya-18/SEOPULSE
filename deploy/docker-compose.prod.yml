@@ -47,6 +47,15 @@ x-backend-env: &backend-env
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
   SENTRY_RELEASE: ${IMAGE_TAG:?IMAGE_TAG is required}
   SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.0}
+  # PDF reports: on the shared reports_data volume unless an S3 bucket is set.
+  SEOPULSE_REPORTS_DIR: /var/lib/seopulse/reports
+  SEOPULSE_REPORTS_S3_BUCKET: ${REPORTS_S3_BUCKET:-}
+  SEOPULSE_REPORTS_S3_REGION: ${REPORTS_S3_REGION:-us-east-1}
+  SEOPULSE_REPORTS_S3_ENDPOINT: ${REPORTS_S3_ENDPOINT:-}
+  SEOPULSE_REPORTS_S3_PATH_STYLE: ${REPORTS_S3_PATH_STYLE:-false}
+  SEOPULSE_REPORTS_SIGNING_KEY: ${REPORTS_SIGNING_KEY:-}
+  AWS_ACCESS_KEY_ID: ${REPORTS_S3_ACCESS_KEY_ID:-}
+  AWS_SECRET_ACCESS_KEY: ${REPORTS_S3_SECRET_ACCESS_KEY:-}
 
 services:
 
@@ -99,6 +108,8 @@ services:
       <<: *backend-env
       SPRING_PROFILES_ACTIVE: prod
       APP_NAME: seopulse-api
+    volumes:
+      - reports_data:/var/lib/seopulse/reports
     healthcheck:
       # Readiness includes Postgres and Redis; Flyway migrations run before it goes green.
       test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health/readiness > /dev/null || exit 1"]
@@ -126,6 +137,8 @@ services:
       # Only the API migrates; workers start after it is healthy.
       SPRING_FLYWAY_ENABLED: "false"
       SEOPULSE_WORKER_CONCURRENCY: ${SEOPULSE_WORKER_CONCURRENCY:-2}
+    volumes:
+      - reports_data:/var/lib/seopulse/reports
     depends_on:
       api: { condition: service_healthy }
     stop_grace_period: 45s
@@ -267,5 +280,6 @@ volumes:
   caddy_config: {}
   postgres_data: {}
   redis_data: {}
+  reports_data: {}
   prometheus_data: {}
   grafana_data: {}

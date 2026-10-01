@@ -49,6 +49,43 @@ public interface SeoIssueRepository extends JpaRepository<SeoIssue, Long> {
 
     void deleteByAuditPageId(Long auditPageId);
 
+    @Query("""
+            SELECT s.auditPage.id, s.ruleCode
+            FROM SeoIssue s
+            WHERE s.auditPage.audit.id = :auditId
+            """)
+    List<Object[]> findPageRulePairsByAuditId(@Param("auditId") Long auditId);
+
+    default List<String> findPageRuleKeysByAuditId(Long auditId) {
+        return findPageRulePairsByAuditId(auditId).stream()
+                .map(row -> row[0] + "|" + row[1])
+                .toList();
+    }
+
+    /** Everything scoring needs, for all pages of an audit, in one query. */
+    @Query("""
+            SELECT new com.seopulse.website.seo.model.IssueRow(
+                s.auditPage.id, s.ruleCode, s.severity, s.category)
+            FROM SeoIssue s
+            WHERE s.auditPage.audit.id = :auditId
+            """)
+    List<com.seopulse.website.seo.model.IssueRow> findRowsByAuditId(@Param("auditId") Long auditId);
+
+    @Query("""
+            SELECT new com.seopulse.website.seo.model.IssueSnapshot(
+                s.fingerprint, s.ruleCode, s.severity, s.category, s.auditPage.url, s.message)
+            FROM SeoIssue s
+            WHERE s.auditPage.audit.id = :auditId
+            """)
+    List<com.seopulse.website.seo.model.IssueSnapshot> findSnapshotsByAuditId(@Param("auditId") Long auditId);
+
+    @Query("""
+            SELECT s.fingerprint
+            FROM SeoIssue s
+            WHERE s.auditPage.audit.id = :auditId AND s.fingerprint IS NOT NULL
+            """)
+    List<String> findFingerprintsByAuditId(@Param("auditId") Long auditId);
+
     @Modifying
     @Query("""
             DELETE FROM SeoIssue s

@@ -14,6 +14,7 @@ import { isActiveAudit, type Audit } from '@/api/audits'
 import { useDashboard } from '@/api/queries/dashboard'
 import { websiteApi, type Website } from '@/api/websites'
 import { AddWebsiteModal } from '@/features/websites/components/AddWebsiteModal'
+import { ScheduleControl } from '@/features/websites/ScheduleControl'
 import { hostOf, relativeTime } from '@/lib/format'
 import { useToast } from '@/lib/toast'
 import { useWorkspace } from '@/lib/workspace'
@@ -196,6 +197,7 @@ function latestCompleted(audits: Audit[] | undefined) {
 }
 
 function SiteCard({ site, audits }: { site: Website; audits: Audit[] }) {
+  const { projectId } = useWorkspace()
   const latest = latestCompleted(audits)
   const active = audits.find((audit) => isActiveAudit(audit.status)) ?? null
   const host = hostOf(site.url)
@@ -262,6 +264,7 @@ function SiteCard({ site, audits }: { site: Website; audits: Audit[] }) {
             Latest report
           </Link>
         )}
+        <ScheduleControl projectId={projectId} websiteId={site.id} />
         <a
           href={site.url}
           target="_blank"

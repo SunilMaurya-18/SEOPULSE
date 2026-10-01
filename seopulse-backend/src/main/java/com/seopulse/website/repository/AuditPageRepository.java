@@ -27,10 +27,17 @@ public interface AuditPageRepository
 
     long countByAuditId(Long auditId);
 
+    List<AuditPage> findByAuditIdAndDepthOrderByIdAsc(Long auditId, Integer depth);
+
     @Modifying
     @Query("""
             DELETE FROM AuditPage p
             WHERE p.audit.id = :auditId
             """)
     int deleteByAuditId(@Param("auditId") Long auditId);
+
+    /** Issues are removed with their pages by the database cascade. */
+    @Modifying
+    @Query(value = "DELETE FROM audit_pages WHERE audit_id IN (:auditIds)", nativeQuery = true)
+    int deleteByAuditIds(@Param("auditIds") java.util.Collection<Long> auditIds);
 }

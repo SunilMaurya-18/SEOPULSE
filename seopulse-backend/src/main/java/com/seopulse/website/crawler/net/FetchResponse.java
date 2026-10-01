@@ -10,8 +10,21 @@ public record FetchResponse(
         String location,
         String retryAfter,
         byte[] body,
-        boolean tooLarge
+        boolean tooLarge,
+        String xRobotsTag,
+        String strictTransportSecurity
 ) {
+
+    public FetchResponse(
+            int status,
+            String contentType,
+            String location,
+            String retryAfter,
+            byte[] body,
+            boolean tooLarge
+    ) {
+        this(status, contentType, location, retryAfter, body, tooLarge, null, null);
+    }
 
     public boolean isSuccess() {
         return status >= 200 && status < 300;

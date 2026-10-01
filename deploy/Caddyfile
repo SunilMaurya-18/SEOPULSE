@@ -41,12 +41,14 @@
 
 	log {
 		output stdout
-		# Verify and reset links carry single-use tokens in the query string.
-		# Caddy already redacts Cookie and Authorization headers.
+		# Verify and reset links carry single-use tokens in the query string,
+		# PDF download links a signature. Caddy already redacts Cookie and
+		# Authorization headers.
 		format filter {
 			wrap json
 			request>uri query {
 				delete token
+				delete sig
 			}
 		}
 	}

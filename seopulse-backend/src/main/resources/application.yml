@@ -126,6 +126,29 @@ seopulse:
     cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/pricing}
   rate-limit:
     enabled: ${SEOPULSE_RATE_LIMIT_ENABLED:true}
+  reports:
+    # Shared by the api and worker containers unless an S3 bucket is set.
+    storage-dir: ${SEOPULSE_REPORTS_DIR:./data/reports}
+    s3-bucket: ${SEOPULSE_REPORTS_S3_BUCKET:}
+    s3-region: ${SEOPULSE_REPORTS_S3_REGION:us-east-1}
+    s3-endpoint: ${SEOPULSE_REPORTS_S3_ENDPOINT:}
+    s3-path-style: ${SEOPULSE_REPORTS_S3_PATH_STYLE:false}
+    # Falls back to a key derived from JWT_SECRET.
+    signing-key: ${SEOPULSE_REPORTS_SIGNING_KEY:}
+    download-url-ttl: 10m
+    default-share-days: 30
+    max-share-days: 365
+    poll-interval-ms: 5000
+  alerts:
+    dispatch-interval-ms: 10000
+  retention:
+    cron: "0 15 2 * * *"
+  analysis:
+    external-links:
+      max-checks: 50
+      max-per-host: 3
+      concurrency: 4
+      budget-seconds: 60
   crawler:
     max-pages: 500
     max-depth: 5

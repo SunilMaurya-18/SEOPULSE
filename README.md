@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/SunilMaurya-18/SEOPULSE/actions/workflows/codeql.yml/badge.svg)](https://github.com/SunilMaurya-18/SEOPULSE/actions/workflows/codeql.yml)
 
 ```
-Connect a website  →  Run an audit  →  Crawl and analyze  →  Review ranked issues  →  Download or email the report
+Connect a website  →  Run or schedule audits  →  Crawl and analyze  →  Review ranked issues and what changed  →  Share the report
 ```
 
 ## Contents
@@ -32,11 +32,15 @@ Connect a website  →  Run an audit  →  Crawl and analyze  →  Review ranked
 
 - **Websites.** Connect any public HTTP/HTTPS site; URLs are validated and private or internal hosts are refused.
 - **Audits.** Queue a crawl and follow it live (`QUEUED → CRAWLING → ANALYZING → COMPLETED`) over Server-Sent Events, with cancellation at any point.
-- **On-page analysis.** Titles, meta descriptions, headings, canonicals, links, images, content and HTTP status for every crawled page.
-- **Health score.** One 0–100 score and letter grade per audit, with a trend across audits.
-- **Ranked issues.** Issues grouped by rule and severity, each with a recommendation and the affected pages.
+- **On-page analysis.** Titles, meta descriptions, headings, canonicals, links, images, content and HTTP status for every crawled page, plus site-wide checks (HTTPS, sitemap, robots.txt, duplicate titles, broken external links) and social and structured-data signals.
+- **Health score.** A weighted 0–100 score per audit with a score per category (content, technical, links, social, performance, security) and a trend chart across audits.
+- **Ranked issues.** Issues grouped by rule and severity, each with a recommendation, a "Learn more" link and the affected pages.
+- **What changed.** Every issue has a stable fingerprint, so each audit shows new and fixed issues against the previous one, and the issue list badges new issues.
+- **Scheduled audits.** Weekly on Pro, daily on Agency, at a chosen hour and timezone. Runs are spread over a 30-minute window and skipped while another audit of the site is running.
+- **Alerts.** Score drops, new errors, an unreachable homepage or a failed audit, sent by email (every plan) or to Slack and signed webhooks (Pro and Agency), with retries and a delivery log. Every organization starts with sensible email alerts.
 - **Page inventory.** Every crawled URL with its status, title, word count and signals, including redirects and robots-blocked pages.
-- **Reports.** Download a printable HTML report or a JSON export, or email the report to anyone.
+- **Reports.** Server-rendered PDF reports (white-label on Agency, watermarked on Free), revocable share links that work without an account, a printable HTML report or JSON export, and email delivery. Scheduled audits email a share link to the organization's owners and admins.
+- **Data retention.** Page-level details are kept for 30, 180 or 365 days by plan; scores, counts and trends are kept for good.
 - **Workspaces and teams.** Organizations with roles (owner, admin, member), email invitations, and Free, Pro and Agency plans with usage limits and Stripe checkout.
 - **Interface.** An Apple-inspired dashboard with a floating command-bar navigation, light and dark themes, and a responsive layout down to phones.
 
@@ -46,6 +50,7 @@ Connect a website  →  Run an audit  →  Crawl and analyze  →  Review ranked
 - **Polite, safe crawler.** Honours robots.txt (RFC 9309) and sitemaps, spaces requests per host, backs off on `429`/`503`, and checks every resolved IP against private and reserved ranges (which also defeats DNS rebinding). Only ports 80 and 443 are allowed.
 - **Scalable workers.** Audits flow through a transactional outbox into a Redis Stream; any number of stateless workers consume it with retries, time budgets, stale-job recovery and a stuck-audit reaper.
 - **Email outbox.** Verification, reset, lockout, invitation and report emails are queued in Postgres and delivered through Resend or SMTP.
+- **Background jobs.** Schedule dispatch, alert delivery, PDF rendering and nightly retention run in the workers, coordinated through ShedLock so each job runs on one worker at a time.
 - **Operations.** RFC 9457 problem responses with request IDs, Redis-backed rate limiting, JSON logs, Prometheus metrics, Sentry, health probes, nightly encrypted backups, and zero-touch deploys with automatic rollback.
 
 ## Architecture
@@ -80,7 +85,7 @@ QUEUED → CRAWLING → ANALYZING → COMPLETED
 | Layer | Technology |
 |---|---|
 | Frontend | React 19, TypeScript 6, Vite 8, Tailwind CSS 4, React Router 7, TanStack Query 5, Axios, Lucide, Three.js (landing effects) |
-| Backend | Java 25, Spring Boot 4.1, Spring Security (OAuth2 resource server, JWT), Spring Data JPA, Flyway, Jetty HttpClient, jsoup, Bucket4j |
+| Backend | Java 25, Spring Boot 4.1, Spring Security (OAuth2 resource server, JWT), Spring Data JPA, Flyway, Jetty HttpClient, jsoup, Bucket4j, ShedLock, OpenHTMLtoPDF, AWS SDK (S3) |
 | Data | PostgreSQL 17, Redis 8 (streams, pub/sub, rate limits, robots cache) |
 | Integrations | Stripe (billing), Resend or SMTP (email), Sentry (errors) |
 | Testing | JUnit 5, Testcontainers, JaCoCo, Vitest, Testing Library, MSW, Playwright |
@@ -96,7 +101,11 @@ SEOPULSE/
 │   │   ├── organization/          Organizations, members, invitations
 │   │   ├── billing/               Plans, subscriptions, Stripe checkout and webhooks
 │   │   ├── project/               Workspaces (projects) and their summaries
-│   │   ├── website/               Websites, audits, crawler, SEO analyzers, worker jobs
+│   │   ├── website/               Websites, audits, crawler, SEO analyzers, comparison, worker jobs
+│   │   ├── schedule/              Scheduled audits and their dispatcher
+│   │   ├── alert/                 Alert rules, evaluation, outbox and delivery (email, Slack, webhooks)
+│   │   ├── report/                PDF rendering, report storage, signed downloads, share links
+│   │   ├── retention/             Nightly data retention
 │   │   ├── notification/          Email outbox and senders (Resend, SMTP, logging)
 │   │   ├── user/                  User accounts
 │   │   └── common/                Security, errors, rate limiting, metrics, config checks
@@ -211,7 +220,19 @@ The `prod` profile refuses to start with a weak `JWT_SECRET`, the default databa
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` / `SENTRY_RELEASE` | empty | Error reporting |
 | `MANAGEMENT_PORT` | `8081` in `prod` | Internal health and Prometheus endpoint |
 
-Crawler limits live under `seopulse.crawler.*`: `max-pages` (500), `max-depth` (5), `concurrency`, `min-delay-ms`, `max-crawl-delay-ms`, `max-retries`, `max-duration-minutes` (20), `max-body-size-bytes`, `allowed-ports`, `respect-robots-txt` and `robots-cache-ttl-hours`.
+Crawler limits live under `seopulse.crawler.*`: `max-pages` (500), `max-depth` (5), `concurrency`, `min-delay-ms`, `max-crawl-delay-ms`, `max-retries`, `max-duration-minutes` (20), `max-body-size-bytes`, `allowed-ports`, `respect-robots-txt` and `robots-cache-ttl-hours`. External link checks are capped under `seopulse.analysis.external-links.*` (`max-checks` 50, `max-per-host` 3, `budget-seconds` 60).
+
+### Reports, alerts and retention
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SEOPULSE_REPORTS_DIR` | `./data/reports` (`/var/lib/seopulse/reports` in the image) | Where PDFs are stored when no bucket is set. The API and workers must share it. |
+| `SEOPULSE_REPORTS_S3_BUCKET` / `_REGION` / `_ENDPOINT` / `_PATH_STYLE` | empty / `us-east-1` / empty / `false` | Store PDFs in S3 or an S3-compatible service instead (credentials come from the standard AWS variables) |
+| `SEOPULSE_REPORTS_SIGNING_KEY` | derived from `JWT_SECRET` | HMAC key for the 10-minute signed PDF download links |
+
+Other settings under `seopulse.*`: `reports.default-share-days` (30), `reports.max-share-days` (365), `reports.download-url-ttl` (10m), `alerts.dispatch-interval-ms` (10 s), and `retention.cron` (`0 15 2 * * *`, UTC). Alert deliveries are retried up to six times with backoff (1 min to 6 h). Webhooks must use HTTPS, are never redirected, and are checked against private networks like the crawler.
+
+Webhook requests carry `X-SEOPulse-Event`, `X-SEOPulse-Delivery` and `X-SEOPulse-Signature: t=<unix seconds>,v1=<hex>`, where `v1` is the HMAC-SHA256 of `"<t>.<raw body>"` with the rule's `whsec_…` secret. Reject requests whose `t` is more than five minutes old.
 
 ### Email
 
@@ -227,11 +248,11 @@ Emails are queued in the `email_outbox` table and sent every 5 seconds. With no 
 
 Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and the price IDs `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_YEARLY`, `STRIPE_PRICE_AGENCY_MONTHLY` and `STRIPE_PRICE_AGENCY_YEARLY` to enable checkout. Point the Stripe webhook at `https://<domain>/api/v1/billing/webhook`. Plan limits are stored in the `plans` table:
 
-| Plan | Websites | Pages per audit | Audits per month | Members |
-|---|---:|---:|---:|---:|
-| Free | 1 | 100 | 5 | 1 |
-| Pro | 10 | 2,000 | 100 | 3 |
-| Agency | 50 | 10,000 | 1,000 | 15 |
+| Plan | Websites | Pages per audit | Audits per month | Members | Schedules | Slack and webhooks | White-label | Details kept |
+|---|---:|---:|---:|---:|---|---|---|---:|
+| Free | 1 | 100 | 5 | 1 | none | no | no (watermarked) | 30 days |
+| Pro | 10 | 2,000 | 100 | 3 | weekly | yes | no | 180 days |
+| Agency | 50 | 10,000 | 1,000 | 15 | daily | yes | yes | 365 days |
 
 ### Frontend
 
@@ -258,8 +279,12 @@ All endpoints live under `/api/v1`. The full, interactive contract is in Swagger
 | **Organizations** | `GET, POST /orgs` · `PATCH, DELETE /orgs/{orgId}` · `GET /orgs/{orgId}/members` · `PATCH, DELETE /orgs/{orgId}/members/{userId}` · `GET, POST /orgs/{orgId}/invitations` · `DELETE /orgs/{orgId}/invitations/{id}` · `POST /orgs/invitations/accept` · `POST /orgs/{orgId}/leave` |
 | **Billing** | `GET /orgs/{orgId}/billing` · `POST /orgs/{orgId}/billing/checkout` · `POST /orgs/{orgId}/billing/portal` · `POST /billing/webhook` (Stripe) |
 | **Projects** | `GET, POST /projects` · `GET, DELETE /projects/{projectId}` · `GET /projects/{projectId}/summary` |
-| **Websites** | `GET, POST /projects/{projectId}/websites` · `GET /projects/{projectId}/websites/{websiteId}` |
-| **Audits** | `GET, POST /projects/{projectId}/audits` · then under `/projects/{projectId}/audits/{auditId}`: `GET` · `GET /summary` · `GET /pages` · `GET /issues` · `POST /cancel` · `POST /email` · `GET /events` (Server-Sent Events) |
+| **Websites** | `GET, POST /projects/{projectId}/websites` · `GET /projects/{projectId}/websites/{websiteId}` · `GET /…/websites/{websiteId}/trend?limit=30` · `GET, PUT, DELETE /…/websites/{websiteId}/schedule` |
+| **Audits** | `GET, POST /projects/{projectId}/audits` · then under `/projects/{projectId}/audits/{auditId}`: `GET` · `GET /summary` · `GET /pages` · `GET /issues` · `POST /cancel` · `POST /email` · `GET /events` (Server-Sent Events) · `GET /compare?baseline=` |
+| **Reports** | Under `/projects/{projectId}/audits/{auditId}`: `POST, GET /reports` · `POST /reports/{id}/download-url` · `POST, GET /shares` · `DELETE /shares/{id}` |
+| **Alerts** | `GET, POST /orgs/{orgId}/alerts` · `PUT, DELETE /orgs/{orgId}/alerts/{id}` · `POST /orgs/{orgId}/alerts/{id}/test` · `POST /orgs/{orgId}/alerts/{id}/rotate-secret` · `GET /orgs/{orgId}/alerts/deliveries` |
+| **Branding** | `GET, PUT, DELETE /orgs/{orgId}/branding` |
+| **Public** (no auth) | `GET /public/reports/{token}` · `GET /public/reports/{token}/pdf` · `GET /public/report-files/{id}?expires=&sig=` |
 | **Health** | `GET /health` |
 
 The refresh token is an `HttpOnly; SameSite=Strict` cookie scoped to `/api/v1/auth`; `refresh` and `logout` also require an `X-Requested-With` header. Presenting an already-rotated refresh token revokes the whole session family.
@@ -273,11 +298,12 @@ The refresh token is an `HttpOnly; SameSite=Strict` cookie scoped to `/api/v1/au
 | `/login`, `/register` | Sign in and create account |
 | `/forgot-password`, `/reset-password?token=`, `/verify-email?token=` | Account recovery and verification |
 | `/dashboard` | Workspace overview with KPIs, trends and next steps |
-| `/websites` | Connected websites |
-| `/audits`, `/audits/:auditId` | Audit history, live crawl, report download and email |
-| `/audits/:auditId/pages`, `/audits/:auditId/issues` | Page inventory and issues for one audit |
+| `/websites` | Connected websites and their audit schedules |
+| `/audits`, `/audits/:auditId` | Audit history, live crawl, changes since the last audit, category scores, trend, PDF reports, share links and email |
+| `/audits/:auditId/pages`, `/audits/:auditId/issues` | Page inventory and issues for one audit (with New badges and a "new since last audit" filter) |
 | `/issues`, `/pages` | Cross-site issue and page explorers |
-| `/settings` | Account, theme, sessions, workspace, plan and team |
+| `/settings` | Account, theme, sessions, workspace, plan, team, alerts and report branding |
+| `/r/:token` | Public shared report (no sign-in, not indexed) |
 
 Signed-in routes are lazy-loaded behind error boundaries. Server state uses TanStack Query; the access token lives only in memory and a 401 triggers a single shared refresh before requests are retried.
 
@@ -331,6 +357,8 @@ Production is one Docker Compose stack per server: Caddy (automatic TLS), the st
 | `backup/` | Backup image: encrypted `pg_dump` to S3-compatible storage |
 | `monitoring/prometheus.yml` | Scrape config for the optional monitoring profile |
 | `docker-compose.ci.yml`, `ci.env` | The same stack built from source on `https://localhost`, for CI and local testing |
+
+**Report storage.** PDF reports are written to the `reports_data` volume, mounted on both the API and the workers. To run them on separate hosts, set `REPORTS_S3_BUCKET` (and credentials) in `.env` so both sides use S3 instead.
 
 **Network layout.** Only Caddy publishes ports (80, 443 and 443/udp). Postgres and Redis sit on an internal network with no internet route; workers and backups reach the internet through a separate egress network. Actuator listens on port 8081 inside the containers and is never routed by Caddy. Only the API runs Flyway migrations, and workers start once it is healthy.
 
@@ -523,6 +551,9 @@ The schema is owned by Flyway (`seopulse-backend/src/main/resources/db/migration
 | V5 | Projects moved under organizations |
 | V6 | Plans, subscriptions, Stripe events, usage counters |
 | V7 | Email outbox, terms acceptance, locked websites |
+| V8 | Audit schedules, alert rules and alert outbox, ShedLock, plan features (schedules, webhooks, white-label, retention) |
+| V9 | Rule catalog with categories and help links, issue fingerprints, page signals, weighted category scores, audit aggregates |
+| V10 | PDF reports, share links, organization branding |
 
 Rules for every migration:
 
@@ -547,7 +578,7 @@ Rules for every migration:
 
 ## Roadmap
 
-- **Retention:** scheduled audits, alerts (email, Slack, webhooks), issue trends and fingerprints, branded PDF reports and share links.
+- **Retention (done):** scheduled audits, alerts (email, Slack, webhooks), issue trends and fingerprints, branded PDF reports and share links, data retention.
 - **Growth:** Google Search Console and GA4, Core Web Vitals, JavaScript rendering, a public API, AI fix suggestions, an admin console, and GDPR tooling.
 
 ## License

@@ -8,4 +8,14 @@ export const queryKeys = {
     ['projects', projectId, 'audit', auditId] as const,
   auditSummary: (projectId: number, auditId: number) =>
     ['projects', projectId, 'audit', auditId, 'summary'] as const,
+  auditComparison: (projectId: number, auditId: number) =>
+    ['projects', projectId, 'audit', auditId, 'comparison'] as const,
+  auditReports: (projectId: number, auditId: number) =>
+    ['projects', projectId, 'audit', auditId, 'reports'] as const,
+  auditShares: (projectId: number, auditId: number) =>
+    ['projects', projectId, 'audit', auditId, 'shares'] as const,
+  websiteTrend: (projectId: number, websiteId: number) =>
+    ['projects', projectId, 'websites', websiteId, 'trend'] as const,
+  websiteSchedule: (projectId: number, websiteId: number) =>
+    ['projects', projectId, 'websites', websiteId, 'schedule'] as const,
 }

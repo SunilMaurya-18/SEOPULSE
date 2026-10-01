@@ -95,6 +95,10 @@ public class SecurityConfig {
                                 .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhook")
                                 .permitAll()
 
+                                // Shared reports and signed PDF downloads
+                                .requestMatchers(HttpMethod.GET, "/api/v1/public/**")
+                                .permitAll()
+
                                 // Health checks and metrics scraping. In prod the
                                 // actuator runs on an internal-only port.
                                 .requestMatchers(

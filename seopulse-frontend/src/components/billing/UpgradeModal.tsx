@@ -13,6 +13,22 @@ export interface UpgradeDetail {
   meter?: string
 }
 
+/** Feature gates (as opposed to usage meters) send used/limit of 0, so they get their own copy. */
+const FEATURE_COPY: Record<string, { title: string; body: string }> = {
+  schedules: {
+    title: 'Automate your audits',
+    body: 'Scheduled audits run weekly on Pro and daily on Agency, and alert you when something regresses.',
+  },
+  webhookAlerts: {
+    title: 'Send alerts anywhere',
+    body: 'Slack and signed webhook alerts are available on Pro and Agency. Email alerts are included on every plan.',
+  },
+  whiteLabel: {
+    title: 'Reports with your brand',
+    body: 'White-label PDF reports and share pages with your logo and colors are part of the Agency plan.',
+  },
+}
+
 export function UpgradeModal() {
   const [detail, setDetail] = useState<UpgradeDetail | null>(null)
 
@@ -36,7 +52,8 @@ export function UpgradeModal() {
 
   if (!detail) return null
 
-  const hasMeter = typeof detail.used === 'number' && typeof detail.limit === 'number'
+  const feature = detail.meter ? FEATURE_COPY[detail.meter] : undefined
+  const hasMeter = !feature && typeof detail.used === 'number' && typeof detail.limit === 'number' && detail.limit > 0
   const pct = hasMeter && detail.limit! > 0 ? Math.min(100, Math.round((detail.used! / detail.limit!) * 100)) : 100
 
   return (
@@ -61,10 +78,10 @@ export function UpgradeModal() {
             <Sparkles />
           </IconTile>
           <h2 id="upgrade-title" className="text-large-title mt-5 text-[28px] text-main">
-            Upgrade to keep going
+            {feature?.title ?? 'Upgrade to keep going'}
           </h2>
           <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted">
-            {detail.detail || 'This workspace has used its allowance for the current plan.'}
+            {feature?.body ?? (detail.detail || 'This workspace has used its allowance for the current plan.')}
           </p>
           {hasMeter && (
             <div className="mt-5 rounded-2xl bg-surface-low p-4 text-left dark:bg-surface-high/60">

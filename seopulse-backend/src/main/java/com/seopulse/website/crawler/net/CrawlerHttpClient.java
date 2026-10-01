@@ -165,8 +165,62 @@ public class CrawlerHttpClient implements DisposableBean {
                 headers.get(HttpHeader.LOCATION),
                 headers.get(HttpHeader.RETRY_AFTER),
                 body,
-                tooLarge
+                tooLarge,
+                joined(headers, "X-Robots-Tag"),
+                headers.get(HttpHeader.STRICT_TRANSPORT_SECURITY)
         );
+    }
+
+    /**
+     * Returns the status of {@code uri} using HEAD, falling back to GET for
+     * servers that reject HEAD. Redirects are not followed.
+     */
+    public int status(URI uri) throws IOException, InterruptedException {
+
+        int status = send(uri, HttpMethod.HEAD);
+
+        if (status == 405 || status == 501) {
+            status = send(uri, HttpMethod.GET);
+        }
+
+        return status;
+    }
+
+    private int send(URI uri, HttpMethod method) throws IOException, InterruptedException {
+
+        InputStreamResponseListener listener = new InputStreamResponseListener();
+
+        httpClient.newRequest(uri)
+                .method(method)
+                .timeout(requestTimeoutMs, TimeUnit.MILLISECONDS)
+                .headers(headers -> headers.put(HttpHeader.ACCEPT, "*/*"))
+                .send(listener);
+
+        try {
+            Response response = listener.get(requestTimeoutMs, TimeUnit.MILLISECONDS);
+            try (InputStream input = listener.getInputStream()) {
+                if (readLimited(input, DRAIN_LIMIT_BYTES) == null) {
+                    response.abort(new IOException("Response body discarded"));
+                }
+            } catch (InterruptedIOException ex) {
+                throw new SocketTimeoutException("Response body timed out: " + uri);
+            }
+            return response.getStatus();
+        } catch (TimeoutException ex) {
+            listener.close();
+            throw new SocketTimeoutException("Request timed out: " + uri);
+        } catch (ExecutionException ex) {
+            throw unwrap(ex, uri);
+        }
+    }
+
+    private static String joined(HttpFields headers, String name) {
+        var values = headers.getValuesList(name);
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        String value = String.join(", ", values);
+        return value.length() > 500 ? value.substring(0, 500) : value;
     }
 
     /**

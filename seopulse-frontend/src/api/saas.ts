@@ -25,6 +25,63 @@ export interface PlanLimits {
   pagesPerAudit: number
   auditsPerMonth: number
   members: number
+  schedule: 'NONE' | 'WEEKLY' | 'DAILY'
+  webhookAlerts: boolean
+  whiteLabel: boolean
+  retentionDays: number
+}
+
+export type AlertType = 'SCORE_DROP' | 'NEW_ERRORS' | 'PAGE_UNREACHABLE' | 'AUDIT_FAILED'
+export type AlertChannel = 'EMAIL' | 'SLACK_WEBHOOK' | 'WEBHOOK'
+
+export interface AlertRule {
+  id: number
+  websiteId: number | null
+  type: AlertType
+  threshold: number | null
+  channel: AlertChannel
+  /** Email address (blank = owners and admins), or a masked webhook URL. */
+  target: string | null
+  enabled: boolean
+  /** Full secret only right after creation or rotation; otherwise masked. */
+  signingSecret: string | null
+  secretRevealed: boolean
+  createdAt: string
+}
+
+export interface AlertRuleInput {
+  type: AlertType
+  threshold?: number | null
+  channel: AlertChannel
+  target?: string | null
+  websiteId?: number | null
+  enabled?: boolean
+}
+
+export interface AlertDelivery {
+  id: number
+  ruleId: number | null
+  auditId: number | null
+  eventType: string
+  channel: AlertChannel
+  subject: string
+  delivered: boolean
+  attempts: number
+  lastError: string | null
+  createdAt: string
+  deliveredAt: string | null
+}
+
+export interface OrganizationBranding {
+  companyName: string | null
+  brandColor: string | null
+  coverText: string | null
+  logoDataUrl: string | null
+}
+
+export interface BrandingState {
+  branding: OrganizationBranding | null
+  whiteLabelAvailable: boolean
 }
 
 export interface BillingSnapshot {
@@ -56,4 +113,30 @@ export const saasApi = {
       .then((response) => response.data.url),
   portal: (orgId: number) =>
     api.post<{ url: string }>(`/orgs/${orgId}/billing/portal`).then((response) => response.data.url),
+}
+
+export const alertApi = {
+  list: (orgId: number) =>
+    api.get<AlertRule[]>(`/orgs/${orgId}/alerts`).then((response) => response.data),
+  deliveries: (orgId: number) =>
+    api.get<AlertDelivery[]>(`/orgs/${orgId}/alerts/deliveries`).then((response) => response.data),
+  create: (orgId: number, input: AlertRuleInput) =>
+    api.post<AlertRule>(`/orgs/${orgId}/alerts`, input).then((response) => response.data),
+  update: (orgId: number, ruleId: number, input: AlertRuleInput) =>
+    api.put<AlertRule>(`/orgs/${orgId}/alerts/${ruleId}`, input).then((response) => response.data),
+  remove: (orgId: number, ruleId: number) => api.delete(`/orgs/${orgId}/alerts/${ruleId}`),
+  test: (orgId: number, ruleId: number) =>
+    api
+      .post<{ delivered: boolean; error: string | null }>(`/orgs/${orgId}/alerts/${ruleId}/test`)
+      .then((response) => response.data),
+  rotateSecret: (orgId: number, ruleId: number) =>
+    api.post<AlertRule>(`/orgs/${orgId}/alerts/${ruleId}/rotate-secret`).then((response) => response.data),
+}
+
+export const brandingApi = {
+  get: (orgId: number) =>
+    api.get<BrandingState>(`/orgs/${orgId}/branding`).then((response) => response.data),
+  save: (orgId: number, branding: OrganizationBranding) =>
+    api.put<BrandingState>(`/orgs/${orgId}/branding`, branding).then((response) => response.data),
+  clear: (orgId: number) => api.delete(`/orgs/${orgId}/branding`),
 }

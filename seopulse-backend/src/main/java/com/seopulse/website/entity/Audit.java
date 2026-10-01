@@ -2,8 +2,11 @@ package com.seopulse.website.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Entity
 @Table(
@@ -69,12 +72,45 @@ public class Audit {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "triggered_by", nullable = false, length = 20)
+    private AuditTrigger triggeredBy;
+
+    // Aggregates written at completion, so trends and summaries keep
+    // working after retention removes the page-level rows.
+
+    @Column(name = "issue_count")
+    private Integer issueCount;
+
+    @Column(name = "error_count")
+    private Integer errorCount;
+
+    @Column(name = "warning_count")
+    private Integer warningCount;
+
+    @Column(name = "info_count")
+    private Integer infoCount;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "category_scores", columnDefinition = "jsonb")
+    private Map<String, Integer> categoryScores;
+
+    @Column(name = "score_version")
+    private Integer scoreVersion;
+
+    @Column(name = "details_purged_at")
+    private Instant detailsPurgedAt;
+
     @PrePersist
     protected void onCreate() {
 
         Instant now = Instant.now();
 
         createdAt = now;
+
+        if (triggeredBy == null) {
+            triggeredBy = AuditTrigger.MANUAL;
+        }
 
         if (pagesCrawled == null) {
             pagesCrawled = 0;

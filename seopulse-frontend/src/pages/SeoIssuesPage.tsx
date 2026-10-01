@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 
 import { auditApi, type SeoIssue } from '@/api/audits'
 import { useAuditSummary } from '@/api/queries/audits'
+import { useAuditComparison } from '@/api/queries/insights'
 import { IssueGroups } from '@/features/issues/IssueGroups'
 import { severityTabs, type SeverityFilter } from '@/features/issues/severity'
 import { useWorkspace } from '@/lib/workspace'
@@ -23,6 +24,12 @@ export function SeoIssuesPage() {
   const { projectId } = useWorkspace()
   const { auditId } = useParams<{ auditId: string }>()
   const summary = useAuditSummary(projectId, Number(auditId))
+  const comparison = useAuditComparison(projectId, Number(auditId), summary.data?.status === 'COMPLETED')
+  const newFingerprints = useMemo(
+    () => (comparison.data?.baselineAuditId ? new Set(comparison.data.newFingerprints) : undefined),
+    [comparison.data],
+  )
+  const [onlyNew, setOnlyNew] = useState(false)
 
   const [issues, setIssues] = useState<SeoIssue[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,16 +84,21 @@ export function SeoIssuesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return issues
+    const scoped =
+      onlyNew && newFingerprints
+        ? issues.filter((issue) => !!issue.fingerprint && newFingerprints.has(issue.fingerprint))
+        : issues
+    if (!q) return scoped
 
-    return issues.filter((issue) => {
+    return scoped.filter((issue) => {
       return (
         issue.message.toLowerCase().includes(q) ||
         issue.url.toLowerCase().includes(q) ||
-        issue.ruleCode.toLowerCase().includes(q)
+        issue.ruleCode.toLowerCase().includes(q) ||
+        (issue.ruleTitle ?? '').toLowerCase().includes(q)
       )
     })
-  }, [issues, search])
+  }, [issues, search, onlyNew, newFingerprints])
 
   const counts = summary.data
     ? {
@@ -131,14 +143,36 @@ export function SeoIssuesPage() {
           onChange={(id) => setSeverity(id as SeverityFilter)}
           items={severityTabs(counts)}
         />
-        <SearchField
-          label="Search issues"
-          placeholder="Filter by message, URL, or rule"
-          value={search}
-          onChange={setSearch}
-          className="sm:w-72"
-        />
+        <div className="flex items-center gap-2">
+          {newFingerprints && comparison.data && comparison.data.newCount > 0 && (
+            <button
+              type="button"
+              aria-pressed={onlyNew}
+              onClick={() => setOnlyNew((value) => !value)}
+              className={
+                onlyNew
+                  ? 'h-9 shrink-0 rounded-full bg-accent px-3.5 text-[13px] font-semibold text-on-accent'
+                  : 'h-9 shrink-0 rounded-full bg-surface-elevated px-3.5 text-[13px] font-semibold text-main hover:bg-surface-high'
+              }
+            >
+              New since last audit · {comparison.data.newCount}
+            </button>
+          )}
+          <SearchField
+            label="Search issues"
+            placeholder="Filter by message, URL, or rule"
+            value={search}
+            onChange={setSearch}
+            className="sm:w-72"
+          />
+        </div>
       </div>
+
+      {summary.data?.detailsPurged && (
+        <Alert variant="info" title="Details archived">
+          Issue details for this audit were removed by data retention. The counts above still apply.
+        </Alert>
+      )}
 
       {loading ? (
         <div className="space-y-3">
@@ -166,7 +200,10 @@ export function SeoIssuesPage() {
             {search.trim() ? ` of ${issues.length}` : ''}
             {!search.trim() && totalElements > issues.length ? ` · ${totalElements} total` : ''}
           </p>
-          <IssueGroups issues={filtered} />
+          {onlyNew && (
+            <p className="px-1 text-xs text-dim">Showing new issues on this page of results only.</p>
+          )}
+          <IssueGroups issues={filtered} newFingerprints={newFingerprints} />
         </>
       )}
 

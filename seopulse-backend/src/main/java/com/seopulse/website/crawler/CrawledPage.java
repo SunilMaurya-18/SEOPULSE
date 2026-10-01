@@ -1,5 +1,7 @@
 package com.seopulse.website.crawler;
 
+import com.seopulse.website.entity.PageSignals;
+
 import java.util.List;
 import java.util.Set;
 
@@ -21,7 +23,8 @@ public record CrawledPage(
         Set<String> discoveredUrls,
         String finalUrl,
         List<String> redirectChain,
-        String skipReason
+        String skipReason,
+        PageSignals signals
 ) {
 
     public enum Outcome {
@@ -52,7 +55,8 @@ public record CrawledPage(
                 null, null, null,
                 0, 0, 0, 0, 0, 0,
                 depth, Set.of(),
-                finalUrl, redirectChain, skipReason
+                finalUrl, redirectChain, skipReason,
+                null
         );
     }
 }

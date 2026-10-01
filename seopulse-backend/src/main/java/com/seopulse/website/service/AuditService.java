@@ -25,7 +25,10 @@ import com.seopulse.website.entity.Audit;
 import com.seopulse.website.entity.AuditOutbox;
 import com.seopulse.website.entity.AuditPage;
 import com.seopulse.website.entity.AuditStatus;
+import com.seopulse.website.entity.AuditTrigger;
 import com.seopulse.website.entity.Website;
+import com.seopulse.website.seo.rules.RuleCatalog;
+import com.seopulse.website.seo.rules.RuleDefinition;
 import com.seopulse.website.entity.WebsiteStatus;
 import com.seopulse.website.repository.AuditPageRepository;
 import com.seopulse.website.repository.AuditRepository;
@@ -64,6 +67,7 @@ public class AuditService {
     private final EntitlementService entitlementService;
     private final OrganizationAccessService organizationAccessService;
     private final EmailOutboxService emailOutboxService;
+    private final RuleCatalog ruleCatalog;
 
 
     // ============================================================
@@ -131,34 +135,7 @@ public class AuditService {
         }
 
 
-        Audit audit =
-                Audit.builder()
-                        .website(website)
-                        .status(AuditStatus.QUEUED)
-                        .score(null)
-                        .pagesCrawled(0)
-                        .pagesAnalyzed(0)
-                        .retryCount(0)
-                        .maxRetries(3)
-                        .startedAt(null)
-                        .completedAt(null)
-                        .errorMessage(null)
-                        .build();
-
-
-        Audit savedAudit =
-                auditRepository.save(audit);
-
-
-        AuditOutbox outbox =
-                AuditOutbox.builder()
-                        .audit(savedAudit)
-                        .eventType("AUDIT_CREATED")
-                        .published(false)
-                        .build();
-
-
-        auditOutboxRepository.save(outbox);
+        Audit savedAudit = queueAudit(website, AuditTrigger.MANUAL);
 
         log.info(
                 "Audit created: auditId={}, websiteId={}, projectId={}",
@@ -168,6 +145,67 @@ public class AuditService {
         );
 
         return mapToResponse(savedAudit);
+    }
+
+
+    public enum ScheduledAuditOutcome {
+        CREATED,
+        WEBSITE_INACTIVE,
+        ALREADY_RUNNING,
+        QUOTA_EXHAUSTED
+    }
+
+    public record ScheduledAuditResult(ScheduledAuditOutcome outcome, Long auditId) {
+    }
+
+    /**
+     * Queues an audit for a schedule. Expected refusals are returned rather
+     * than thrown, so the dispatcher's transaction (which also advances the
+     * schedule) is never marked rollback-only.
+     */
+    public ScheduledAuditResult createScheduledAudit(Website website) {
+
+        if (website.getStatus() != WebsiteStatus.ACTIVE) {
+            return new ScheduledAuditResult(ScheduledAuditOutcome.WEBSITE_INACTIVE, null);
+        }
+
+        if (auditRepository.existsByWebsiteIdAndStatusIn(website.getId(), ACTIVE_STATUSES)) {
+            return new ScheduledAuditResult(ScheduledAuditOutcome.ALREADY_RUNNING, null);
+        }
+
+        Long organizationId = website.getProject().getOrganization().getId();
+        if (!entitlementService.tryConsumeAudit(organizationId)) {
+            return new ScheduledAuditResult(ScheduledAuditOutcome.QUOTA_EXHAUSTED, null);
+        }
+
+        Audit audit = queueAudit(website, AuditTrigger.SCHEDULED);
+        log.info("Scheduled audit created: auditId={}, websiteId={}", audit.getId(), website.getId());
+        return new ScheduledAuditResult(ScheduledAuditOutcome.CREATED, audit.getId());
+    }
+
+    private Audit queueAudit(Website website, AuditTrigger trigger) {
+
+        Audit savedAudit = auditRepository.save(
+                Audit.builder()
+                        .website(website)
+                        .status(AuditStatus.QUEUED)
+                        .pagesCrawled(0)
+                        .pagesAnalyzed(0)
+                        .retryCount(0)
+                        .maxRetries(3)
+                        .triggeredBy(trigger)
+                        .build()
+        );
+
+        auditOutboxRepository.save(
+                AuditOutbox.builder()
+                        .audit(savedAudit)
+                        .eventType("AUDIT_CREATED")
+                        .published(false)
+                        .build()
+        );
+
+        return savedAudit;
     }
 
 
@@ -454,33 +492,23 @@ public class AuditService {
                 );
 
 
-        long totalIssues =
-                seoIssueRepository
-                        .countByAuditPageAuditId(auditId);
+        boolean aggregated = audit.getIssueCount() != null;
 
+        long totalIssues = aggregated
+                ? audit.getIssueCount()
+                : seoIssueRepository.countByAuditPageAuditId(auditId);
 
-        long errorCount =
-                seoIssueRepository
-                        .countByAuditPageAuditIdAndSeverityIgnoreCase(
-                                auditId,
-                                "ERROR"
-                        );
+        long errorCount = aggregated && audit.getErrorCount() != null
+                ? audit.getErrorCount()
+                : seoIssueRepository.countByAuditPageAuditIdAndSeverityIgnoreCase(auditId, "ERROR");
 
+        long warningCount = aggregated && audit.getWarningCount() != null
+                ? audit.getWarningCount()
+                : seoIssueRepository.countByAuditPageAuditIdAndSeverityIgnoreCase(auditId, "WARNING");
 
-        long warningCount =
-                seoIssueRepository
-                        .countByAuditPageAuditIdAndSeverityIgnoreCase(
-                                auditId,
-                                "WARNING"
-                        );
-
-
-        long infoCount =
-                seoIssueRepository
-                        .countByAuditPageAuditIdAndSeverityIgnoreCase(
-                                auditId,
-                                "INFO"
-                        );
+        long infoCount = aggregated && audit.getInfoCount() != null
+                ? audit.getInfoCount()
+                : seoIssueRepository.countByAuditPageAuditIdAndSeverityIgnoreCase(auditId, "INFO");
 
 
         log.debug(
@@ -519,7 +547,13 @@ public class AuditService {
 
                 audit.getStartedAt(),
 
-                audit.getCompletedAt()
+                audit.getCompletedAt(),
+
+                audit.getCategoryScores(),
+
+                audit.getScoreVersion(),
+
+                audit.getDetailsPurgedAt() != null
         );
     }
 
@@ -685,7 +719,15 @@ public class AuditService {
 
                 audit.getErrorMessage(),
 
-                audit.getCreatedAt()
+                audit.getCreatedAt(),
+
+                audit.getTriggeredBy(),
+
+                audit.getIssueCount(),
+
+                audit.getErrorCount(),
+
+                audit.getScoreVersion()
         );
     }
 
@@ -801,6 +843,8 @@ public class AuditService {
             SeoIssue issue
     ) {
 
+        RuleDefinition rule = ruleCatalog.get(issue.getRuleCode(), issue.getSeverity());
+
         return new SeoIssueResponse(
 
                 issue.getId(),
@@ -823,7 +867,15 @@ public class AuditService {
 
                 issue.getRecommendations(),
 
-                issue.getCreatedAt()
+                issue.getCreatedAt(),
+
+                issue.getCategory() != null ? issue.getCategory() : rule.category().name(),
+
+                issue.getFingerprint(),
+
+                rule.title(),
+
+                rule.helpUrl()
         );
     }
 }

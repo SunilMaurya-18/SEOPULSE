@@ -56,6 +56,13 @@ public class SeoIssue {
     @Column(length = 1000)
     private String recommendations;
 
+    /** Rule plus normalized page URL; matches the same issue across audits. */
+    @Column(length = 64)
+    private String fingerprint;
+
+    @Column(length = 20)
+    private String category;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

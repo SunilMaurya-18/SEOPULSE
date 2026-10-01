@@ -23,7 +23,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system seopulse \
-    && useradd --system --gid seopulse --no-create-home --shell /usr/sbin/nologin seopulse
+    && useradd --system --gid seopulse --no-create-home --shell /usr/sbin/nologin seopulse \
+    && mkdir -p /var/lib/seopulse/reports \
+    && chown -R seopulse:seopulse /var/lib/seopulse
 
 WORKDIR /application
 
@@ -35,7 +37,8 @@ COPY --from=build /workspace/extracted/application/ ./
 
 ENV SPRING_PROFILES_ACTIVE=prod \
     SERVER_PORT=8082 \
-    MANAGEMENT_PORT=8081
+    MANAGEMENT_PORT=8081 \
+    SEOPULSE_REPORTS_DIR=/var/lib/seopulse/reports
 
 USER seopulse
 EXPOSE 8082 8081

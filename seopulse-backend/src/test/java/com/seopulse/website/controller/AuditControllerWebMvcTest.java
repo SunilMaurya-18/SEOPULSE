@@ -10,6 +10,7 @@ import com.seopulse.common.ratelimit.RateLimiter;
 import com.seopulse.common.security.CurrentUserService;
 import com.seopulse.website.dto.AuditResponse;
 import com.seopulse.website.entity.AuditStatus;
+import com.seopulse.website.entity.AuditTrigger;
 import com.seopulse.website.events.AuditEventStreamService;
 import com.seopulse.website.service.AuditService;
 import org.junit.jupiter.api.Test;
@@ -153,6 +154,6 @@ class AuditControllerWebMvcTest {
 
     private static AuditResponse audit(AuditStatus status) {
         return new AuditResponse(5L, 3L, "https://example.com", status, null, 0, 0,
-                null, null, null, Instant.now());
+                null, null, null, Instant.now(), AuditTrigger.MANUAL, null, null, null);
     }
 }

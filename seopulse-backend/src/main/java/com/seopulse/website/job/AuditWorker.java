@@ -4,6 +4,8 @@ import com.seopulse.common.metrics.AuditMetrics;
 import com.seopulse.website.entity.Audit;
 import com.seopulse.website.entity.AuditStatus;
 import com.seopulse.website.events.AuditEventPublisher;
+import com.seopulse.website.events.AuditFinishedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import com.seopulse.website.repository.AuditPageRepository;
 import com.seopulse.website.repository.AuditRepository;
 import com.seopulse.website.seo.repository.SeoIssueRepository;
@@ -60,6 +62,7 @@ public class AuditWorker {
     private final AuditMetrics metrics;
     private final AuditEventPublisher events;
     private final TransactionTemplate transactionTemplate;
+    private final ApplicationEventPublisher applicationEvents;
 
     private final ExecutorService pipelineExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
@@ -73,8 +76,10 @@ public class AuditWorker {
             WorkerProperties properties,
             AuditMetrics metrics,
             AuditEventPublisher events,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            ApplicationEventPublisher applicationEvents
     ) {
+        this.applicationEvents = applicationEvents;
         this.auditRepository = auditRepository;
         this.auditPageRepository = auditPageRepository;
         this.seoIssueRepository = seoIssueRepository;
@@ -271,6 +276,13 @@ public class AuditWorker {
     private Result finished(Long auditId, Result result, AuditStatus status, Instant startedAt) {
         metrics.auditFinished(status.name(), startedAt == null ? null : Duration.between(startedAt, Instant.now()));
         events.publish(auditId, status);
+        if (status == AuditStatus.COMPLETED || status == AuditStatus.FAILED) {
+            try {
+                applicationEvents.publishEvent(new AuditFinishedEvent(auditId, status));
+            } catch (RuntimeException ex) {
+                log.error("Audit finished listener failed: auditId={}", auditId, ex);
+            }
+        }
         return result;
     }
 

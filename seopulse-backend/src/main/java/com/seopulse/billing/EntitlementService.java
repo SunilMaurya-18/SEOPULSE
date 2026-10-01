@@ -83,6 +83,47 @@ public class EntitlementService {
         }
     }
 
+    /**
+     * Like {@link #consumeAudit} but reports an exhausted quota instead of
+     * throwing, for background callers that must not roll back their
+     * surrounding transaction.
+     */
+    @Transactional
+    public boolean tryConsumeAudit(Long organizationId) {
+        PlanLimits limits = limitsFor(organizationId);
+        LocalDate period = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
+        ensureCounter(organizationId, period);
+        return usageCounterRepository.consume(organizationId, AUDITS, period, 1, limits.auditsPerMonth()) > 0;
+    }
+
+    @Transactional(readOnly = true)
+    public String planCode(Long organizationId) {
+        return effectivePlan(organizationId).getCode();
+    }
+
+    @Transactional(readOnly = true)
+    public void requireSchedule(Long organizationId, String frequency) {
+        PlanLimits limits = limitsFor(organizationId);
+        if (!limits.allowsSchedule(frequency)) {
+            String upgradeTo = "DAILY".equals(frequency) && "WEEKLY".equals(limits.schedule()) ? "AGENCY" : upgradeTarget(organizationId);
+            throw new PlanLimitExceededException("schedules", 0, 0, upgradeTo);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void requireWebhookAlerts(Long organizationId) {
+        if (!limitsFor(organizationId).webhookAlerts()) {
+            throw new PlanLimitExceededException("webhookAlerts", 0, 0, upgradeTarget(organizationId));
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public void requireWhiteLabel(Long organizationId) {
+        if (!limitsFor(organizationId).whiteLabel()) {
+            throw new PlanLimitExceededException("whiteLabel", 0, 0, "AGENCY");
+        }
+    }
+
     @Transactional(readOnly = true)
     public int auditsUsed(Long organizationId) {
         LocalDate period = LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);

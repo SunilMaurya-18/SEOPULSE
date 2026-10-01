@@ -9,6 +9,7 @@ import com.seopulse.website.entity.Audit;
 import com.seopulse.website.entity.AuditPage;
 import com.seopulse.website.entity.AuditPageStatus;
 import com.seopulse.website.entity.AuditStatus;
+import com.seopulse.website.entity.PageSignals;
 import com.seopulse.website.repository.AuditPageRepository;
 import com.seopulse.website.repository.AuditRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -89,7 +90,7 @@ public class AuditCrawlerService {
             Audit managed = auditRepository.findById(auditId)
                     .orElseThrow(() -> new IllegalArgumentException("Audit not found: " + auditId));
 
-            savePages(managed, result.pages());
+            savePages(managed, result);
 
             int crawled = (int) result.pages().stream()
                     .filter(page -> page.outcome() == CrawledPage.Outcome.CRAWLED)
@@ -118,12 +119,12 @@ public class AuditCrawlerService {
 
     private void savePages(
             Audit audit,
-            List<CrawledPage> pages
+            CrawlResult result
     ) {
 
         Instant crawledAt = Instant.now();
 
-        Map<String, CrawledPage> unique = pages.stream()
+        Map<String, CrawledPage> unique = result.pages().stream()
                 .filter(page -> page.url().length() <= 2048)
                 .collect(Collectors.toMap(CrawledPage::url, Function.identity(), (first, second) -> first,
                         LinkedHashMap::new));
@@ -154,11 +155,34 @@ public class AuditCrawlerService {
                             .finalUrl(truncate(page.finalUrl(), 2048))
                             .redirectChain(page.redirectChain())
                             .skipReason(truncate(page.skipReason(), 500))
+                            .signals(signalsFor(page, result))
                             .crawledAt(crawledAt)
                             .build();
 
             auditPageRepository.save(auditPage);
         }
+    }
+
+    private static PageSignals signalsFor(CrawledPage page, CrawlResult result) {
+
+        boolean inSitemap = result.sitemapUrls().contains(page.url());
+        boolean homepage = page.depth() == 0 && page.outcome() == CrawledPage.Outcome.CRAWLED;
+
+        if (page.signals() == null && !inSitemap && !homepage) {
+            return null;
+        }
+
+        PageSignals signals = page.signals() != null ? page.signals() : PageSignals.empty();
+
+        if (inSitemap) {
+            signals = signals.withInSitemap(true);
+        }
+
+        if (homepage && result.httpsEnforced() != null) {
+            signals = signals.withHttpsEnforced(result.httpsEnforced());
+        }
+
+        return signals;
     }
 
     private static AuditPageStatus toStatus(CrawledPage.Outcome outcome) {

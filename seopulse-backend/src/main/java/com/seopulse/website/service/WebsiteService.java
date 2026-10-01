@@ -1,5 +1,6 @@
 package com.seopulse.website.service;
 
+import com.seopulse.alert.AlertService;
 import com.seopulse.billing.EntitlementService;
 import com.seopulse.common.dto.PageResponse;
 import com.seopulse.common.exception.DuplicateResourceException;
@@ -32,6 +33,7 @@ public class WebsiteService {
     private final UrlValidator urlValidator;
     private final EntitlementService entitlementService;
     private final OrganizationAccessService organizationAccessService;
+    private final AlertService alertService;
 
     public WebsiteResponse createWebsite(
             Long projectId,
@@ -69,6 +71,8 @@ public class WebsiteService {
 
         Website savedWebsite =
                 websiteRepository.save(website);
+
+        alertService.applyDefaults(project.getOrganization().getId());
 
         return mapToResponse(savedWebsite);
     }

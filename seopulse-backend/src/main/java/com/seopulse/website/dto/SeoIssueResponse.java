@@ -20,7 +20,15 @@ public record SeoIssueResponse(
 
         String recommendation,
 
-        Instant createdAt
+        Instant createdAt,
+
+        String category,
+
+        String fingerprint,
+
+        String ruleTitle,
+
+        String helpUrl
 
 ) {
 }

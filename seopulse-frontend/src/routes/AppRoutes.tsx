@@ -37,6 +37,7 @@ const PagesInventoryPage = lazyPage(
   'PagesInventoryPage',
 )
 const SettingsPage = lazyPage(() => import('@/pages/SettingsPage'), 'SettingsPage')
+const SharedReportPage = lazyPage(() => import('@/pages/SharedReportPage'), 'SharedReportPage')
 
 function FullPageFallback() {
   return (
@@ -62,6 +63,7 @@ export function AppRoutes() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/r/:token" element={<SharedReportPage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>

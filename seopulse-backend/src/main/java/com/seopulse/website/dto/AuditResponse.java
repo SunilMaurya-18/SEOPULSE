@@ -1,6 +1,7 @@
 package com.seopulse.website.dto;
 
 import com.seopulse.website.entity.AuditStatus;
+import com.seopulse.website.entity.AuditTrigger;
 
 import java.time.Instant;
 
@@ -26,7 +27,15 @@ public record AuditResponse(
 
         String errorMessage,
 
-        Instant createdAt
+        Instant createdAt,
+
+        AuditTrigger triggeredBy,
+
+        Integer issueCount,
+
+        Integer errorCount,
+
+        Integer scoreVersion
 
 ) {
 }

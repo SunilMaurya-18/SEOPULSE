@@ -24,12 +24,18 @@ import {
   useCancelAudit,
   useLiveAudit,
 } from '@/api/queries/audits'
+import { useAuditComparison, useWebsiteTrend } from '@/api/queries/insights'
 import { EmailReportDialog } from '@/features/dashboard/EmailReportDialog'
+import { CategoryScores } from '@/features/insights/CategoryScores'
+import { ComparisonPanel } from '@/features/insights/ComparisonPanel'
+import { ReportActions } from '@/features/insights/ReportActions'
+import { TrendChart } from '@/features/insights/TrendChart'
 import { formatDateTime, formatDuration, hostOf } from '@/lib/format'
 import { useToast } from '@/lib/toast'
 import { useWorkspace } from '@/lib/workspace'
 
 import { Alert } from '@/components/ui/Alert'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { CrawlProgress } from '@/components/ui/CrawlProgress'
 import { DownloadReportButton } from '@/components/ui/DownloadReportButton'
@@ -55,6 +61,9 @@ export function AuditDetailPage() {
   const audit = auditQuery.data ?? null
   const summary = summaryQuery.data ?? null
   const isActive = audit ? isActiveAudit(audit.status) : false
+  const completed = audit?.status === 'COMPLETED'
+  const comparisonQuery = useAuditComparison(projectId, auditId, completed)
+  const trendQuery = useWebsiteTrend(projectId, completed ? audit?.websiteId : null)
 
   const cancelAudit = useCancelAudit(projectId)
 
@@ -125,6 +134,7 @@ export function AuditDetailPage() {
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-[13px] font-semibold text-accent">Audit #{audit.id}</p>
               <StatusBadge status={audit.status} />
+              {audit.triggeredBy === 'SCHEDULED' && <Badge variant="accent">Scheduled</Badge>}
             </div>
             <h1 className="text-large-title mt-1.5 truncate text-main">{host}</h1>
             <a
@@ -151,12 +161,13 @@ export function AuditDetailPage() {
                 variant="primary"
                 size="md"
               />
-              {audit.status === 'COMPLETED' && (
+              {completed && (
                 <Button variant="secondary" onClick={() => setEmailing(true)}>
                   <Mail className="h-4 w-4" />
                   Email report
                 </Button>
               )}
+              {completed && <ReportActions projectId={projectId} auditId={audit.id} />}
               {isActive && (
                 <Button
                   variant="secondary"
@@ -233,6 +244,24 @@ export function AuditDetailPage() {
           />
         </div>
       </section>
+
+      {summary?.detailsPurged && (
+        <Alert variant="info" title="Details archived">
+          Page-level details for this audit were removed by your plan&apos;s data retention. Scores and counts are kept.
+        </Alert>
+      )}
+
+      {completed && comparisonQuery.data && <ComparisonPanel comparison={comparisonQuery.data} />}
+
+      {completed && <CategoryScores scores={summary?.categoryScores} />}
+
+      {completed && trendQuery.data && trendQuery.data.length > 1 && (
+        <section className="widget p-5 sm:p-6">
+          <h2 className="text-headline text-main">Score trend</h2>
+          <p className="mt-0.5 mb-4 text-xs text-dim">Last {trendQuery.data.length} completed audits of {host}</p>
+          <TrendChart points={trendQuery.data} currentAuditId={audit.id} />
+        </section>
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatTile tint="purple" icon={<FileStack />} label="Pages crawled" value={audit.pagesCrawled.toLocaleString()} />

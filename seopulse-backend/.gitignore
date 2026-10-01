@@ -34,6 +34,9 @@ build/
 # Temporary files
 *.tmp
 *.swp
+# Locally generated PDF reports
+/data/
+
 # Spring
 application-local.properties
 application-local.yml

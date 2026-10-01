@@ -120,19 +120,69 @@ public interface AuditRepository extends JpaRepository<Audit, Long> {
 
     @Transactional
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("""
-        UPDATE Audit a
-        SET a.status = :to, a.score = :score, a.pagesAnalyzed = :pagesAnalyzed, a.completedAt = :now
-        WHERE a.id = :auditId AND a.status = :from
-        """)
+    @Query(value = """
+        UPDATE audits
+        SET status = :to, score = :score, pages_analyzed = :pagesAnalyzed, completed_at = :now,
+            issue_count = :issueCount, error_count = :errorCount, warning_count = :warningCount,
+            info_count = :infoCount, category_scores = CAST(:categoryScores AS jsonb),
+            score_version = :scoreVersion
+        WHERE id = :auditId AND status = :from
+        """, nativeQuery = true)
     int completeAnalysis(
             @Param("auditId") Long auditId,
-            @Param("from") AuditStatus from,
-            @Param("to") AuditStatus to,
+            @Param("from") String from,
+            @Param("to") String to,
             @Param("score") int score,
             @Param("pagesAnalyzed") int pagesAnalyzed,
-            @Param("now") Instant now
+            @Param("now") Instant now,
+            @Param("issueCount") int issueCount,
+            @Param("errorCount") int errorCount,
+            @Param("warningCount") int warningCount,
+            @Param("infoCount") int infoCount,
+            @Param("categoryScores") String categoryScores,
+            @Param("scoreVersion") int scoreVersion
     );
+
+    /** Completed audits of a website, newest first. */
+    @Query("""
+        SELECT a FROM Audit a
+        WHERE a.website.id = :websiteId AND a.status = com.seopulse.website.entity.AuditStatus.COMPLETED
+        ORDER BY a.completedAt DESC, a.id DESC
+        """)
+    List<Audit> findCompletedByWebsite(@Param("websiteId") Long websiteId, Pageable pageable);
+
+    /** The completed audit of the same website that finished just before {@code auditId}. */
+    @Query("""
+        SELECT b FROM Audit b, Audit a
+        WHERE a.id = :auditId
+          AND b.website = a.website
+          AND b.id <> a.id
+          AND b.status = com.seopulse.website.entity.AuditStatus.COMPLETED
+          AND b.createdAt < a.createdAt
+        ORDER BY b.createdAt DESC, b.id DESC
+        """)
+    List<Audit> findPreviousCompleted(@Param("auditId") Long auditId, Pageable pageable);
+
+    /** Completed audits whose page-level details are past the retention window. */
+    @Query("""
+        SELECT a.id FROM Audit a
+        WHERE a.website.project.organization.id = :organizationId
+          AND a.status IN :statuses
+          AND a.detailsPurgedAt IS NULL
+          AND a.createdAt < :before
+        ORDER BY a.createdAt
+        """)
+    List<Long> findPurgeable(
+            @Param("organizationId") Long organizationId,
+            @Param("statuses") Collection<AuditStatus> statuses,
+            @Param("before") Instant before,
+            Pageable pageable
+    );
+
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Audit a SET a.detailsPurgedAt = :now WHERE a.id IN :ids")
+    int markPurged(@Param("ids") Collection<Long> ids, @Param("now") Instant now);
 
     /** Moves an active audit to a final status (FAILED or CANCELLED). */
     @Transactional
