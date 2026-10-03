@@ -59,7 +59,6 @@ type EffectDefinition = {
     text: string;
     fontSize: number;
     endTime: number;
-    holdTime: number;
     logoSvg: string;
   };
 };
@@ -1600,7 +1599,6 @@ const EFFECTS = {
       text: "SEOPulse",
       fontSize: 130,
       endTime: 1.7,
-      holdTime: 1.1,
       logoSvg: THREEUI_MARK_SVG,
     },
   },
@@ -1689,7 +1687,7 @@ function buildFocusedDocument(definition: EffectDefinition, mode: EffectMode) {
   const introWordmarkStyle = definition.introWordmark
     ? `html, body, #stage, #comp, .scene { background: transparent !important; }
 #comp { left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; margin: 0 !important; transform: none !important; }
-${definition.introWordmark.sceneSelector} .tx { font-size: clamp(64px, 11vw, 168px) !important; font-family: "IBM Plex Mono", ui-monospace, monospace !important; font-weight: 400 !important; letter-spacing: -0.04em !important; line-height: 0.9 !important; color: #f2f5ea !important; text-align: left !important; left: 0 !important; right: auto !important; transform: translateY(-50%) scale(min(1, (100vw - 24px) / 6.5em)) !important; transform-origin: left center !important; }
+${definition.introWordmark.sceneSelector} .tx { font-size: clamp(64px, 11vw, 168px) !important; font-family: "Geist", "Inter", system-ui, sans-serif !important; font-weight: 600 !important; letter-spacing: -0.05em !important; line-height: 0.9 !important; color: #f2f5ea !important; text-align: left !important; left: 0 !important; right: auto !important; transform: translateY(-50%) scale(min(1, (100vw - 24px) / 6.5em)) !important; transform-origin: left center !important; }
 ${definition.introWordmark.sceneSelector} .mark { color: #F5504A !important; }`
     : "";
   const focusStyle = `<style data-threeui-focus>
@@ -1755,9 +1753,12 @@ ${introWordmarkStyle}
           window.__seek(introWordmark.endTime);
           return;
         }
-        var introCycle = introWordmark.endTime + introWordmark.holdTime;
-        var introTime = ((now - introStartedAt) / 1000) % introCycle;
-        window.__seek(Math.min(introTime, introWordmark.endTime));
+        var introTime = (now - introStartedAt) / 1000;
+        if (introTime >= introWordmark.endTime) {
+          window.__seek(introWordmark.endTime);
+          return;
+        }
+        window.__seek(introTime);
         requestAnimationFrame(renderIntroWordmark);
       }
       requestAnimationFrame(renderIntroWordmark);
@@ -1785,7 +1786,7 @@ ${introWordmarkStyle}
 })();
 </script>`;
   const introFont = definition.introWordmark
-    ? '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">'
+    ? '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@600&display=block">'
     : "";
   return source
     .replace(/<\/head>/i, `${introFont}${focusStyle}</head>`)

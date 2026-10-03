@@ -135,32 +135,34 @@ public class AuditCrawlerService {
                 continue;
             }
 
-            AuditPage auditPage =
-                    AuditPage.builder()
-                            .audit(audit)
-                            .url(page.url())
-                            .status(toStatus(page.outcome()))
-                            .statusCode(page.status() > 0 ? page.status() : null)
-                            .contentType(truncate(page.contentType(), 100))
-                            .title(truncate(page.title(), 500))
-                            .metaDescription(truncate(page.metaDescription(), 1000))
-                            .canonicalUrl(truncate(page.canonicalUrl(), 2048))
-                            .wordCount(page.wordCount())
-                            .h1Count(page.h1Count())
-                            .imageCount(page.imageCount())
-                            .imagesWithoutAlt(page.imagesWithoutAlt())
-                            .internalLinkCount(page.internalLinkCount())
-                            .externalLinkCount(page.externalLinkCount())
-                            .depth(page.depth())
-                            .finalUrl(truncate(page.finalUrl(), 2048))
-                            .redirectChain(page.redirectChain())
-                            .skipReason(truncate(page.skipReason(), 500))
-                            .signals(signalsFor(page, result))
-                            .crawledAt(crawledAt)
-                            .build();
-
-            auditPageRepository.save(auditPage);
+            auditPageRepository.save(toAuditPage(audit, page, result, crawledAt));
         }
+    }
+
+    /** Maps a crawled page to an {@link AuditPage}; {@code audit} may be null for pages that are never saved. */
+    public static AuditPage toAuditPage(Audit audit, CrawledPage page, CrawlResult result, Instant crawledAt) {
+        return AuditPage.builder()
+                .audit(audit)
+                .url(page.url())
+                .status(toStatus(page.outcome()))
+                .statusCode(page.status() > 0 ? page.status() : null)
+                .contentType(truncate(page.contentType(), 100))
+                .title(truncate(page.title(), 500))
+                .metaDescription(truncate(page.metaDescription(), 1000))
+                .canonicalUrl(truncate(page.canonicalUrl(), 2048))
+                .wordCount(page.wordCount())
+                .h1Count(page.h1Count())
+                .imageCount(page.imageCount())
+                .imagesWithoutAlt(page.imagesWithoutAlt())
+                .internalLinkCount(page.internalLinkCount())
+                .externalLinkCount(page.externalLinkCount())
+                .depth(page.depth())
+                .finalUrl(truncate(page.finalUrl(), 2048))
+                .redirectChain(page.redirectChain())
+                .skipReason(truncate(page.skipReason(), 500))
+                .signals(signalsFor(page, result))
+                .crawledAt(crawledAt)
+                .build();
     }
 
     private static PageSignals signalsFor(CrawledPage page, CrawlResult result) {

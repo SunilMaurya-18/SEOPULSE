@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -142,6 +143,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .header("X-RateLimit-Limit", String.valueOf(exception.getLimit()))
                 .header("X-RateLimit-Remaining", "0")
                 .body(Problems.of(HttpStatus.TOO_MANY_REQUESTS, exception.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> handleAccessDenied(
+            AccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        return problem(HttpStatus.FORBIDDEN, exception.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)

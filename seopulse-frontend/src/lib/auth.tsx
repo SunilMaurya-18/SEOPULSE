@@ -22,7 +22,8 @@ interface AuthContextValue {
   status: AuthStatus
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<AuthUser>
+  register: (name: string, email: string, password: string, captchaToken?: string) => Promise<AuthUser>
+  loginWithGoogle: (credential: string) => Promise<AuthUser>
   logout: () => Promise<void>
   logoutAll: () => Promise<void>
   markEmailVerified: () => void
@@ -76,8 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      const session = await authApi.register(name, email, password)
+    async (name: string, email: string, password: string, captchaToken?: string) => {
+      const session = await authApi.register(name, email, password, captchaToken)
+      applySession(session)
+      return toAuthUser(session)
+    },
+    [applySession],
+  )
+
+  const loginWithGoogle = useCallback(
+    async (credential: string) => {
+      const session = await authApi.google(credential)
       applySession(session)
       return toAuthUser(session)
     },
@@ -109,11 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: status === 'authenticated',
       login,
       register,
+      loginWithGoogle,
       logout,
       logoutAll,
       markEmailVerified,
     }),
-    [user, status, login, register, logout, logoutAll, markEmailVerified],
+    [user, status, login, register, loginWithGoogle, logout, logoutAll, markEmailVerified],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

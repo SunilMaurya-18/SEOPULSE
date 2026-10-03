@@ -40,7 +40,8 @@ class SeopulseBackendApplicationTests extends AbstractIntegrationTest {
                 String.class
         );
 
-        assertThat(appliedVersions).containsExactly("1", "2", "3", "4", "5", "6", "7");
+        assertThat(appliedVersions)
+                .containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16");
 
         assertThat(tables).contains(
                 "users",
@@ -61,7 +62,9 @@ class SeopulseBackendApplicationTests extends AbstractIntegrationTest {
                 "subscriptions",
                 "stripe_events",
                 "usage_counters",
-                "email_outbox"
+                "email_outbox",
+                "newsletter_subscribers",
+                "audit_web_vitals"
         );
     }
 }

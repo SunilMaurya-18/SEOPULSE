@@ -43,4 +43,10 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     @Query("SELECT r FROM Report r WHERE r.auditId IN :auditIds AND r.storageKey IS NOT NULL")
     List<Report> findStoredByAuditIds(@Param("auditIds") Collection<Long> auditIds);
+
+    @Query("SELECT r.storageKey FROM Report r WHERE r.organizationId = :organizationId AND r.storageKey IS NOT NULL")
+    List<String> findStorageKeysByOrganizationId(@Param("organizationId") Long organizationId);
+
+    @Query("SELECT COUNT(r) > 0 FROM Report r, Audit a WHERE a.id = r.auditId AND a.website.project.id = :projectId")
+    boolean existsForProject(@Param("projectId") Long projectId);
 }

@@ -29,12 +29,19 @@ export const authApi = {
     name: string,
     email: string,
     password: string,
+    captchaToken?: string,
   ): Promise<AuthResponse> => {
     const response = await authClient.post<AuthResponse>('/auth/register', {
       name,
       email,
       password,
+      ...(captchaToken ? { captchaToken } : {}),
     })
+    return response.data
+  },
+
+  google: async (credential: string): Promise<AuthResponse> => {
+    const response = await authClient.post<AuthResponse>('/auth/google', { credential })
     return response.data
   },
 

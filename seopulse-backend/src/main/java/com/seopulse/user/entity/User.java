@@ -61,6 +61,13 @@ public class User {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
+    @Column(name = "onboarding_dismissed_at")
+    private Instant onboardingDismissedAt;
+
+    /** Stable Google account id ("sub" claim), set once the user signs in with Google. */
+    @Column(name = "google_subject")
+    private String googleSubject;
+
     @Column(
             name = "created_at",
             nullable = false,

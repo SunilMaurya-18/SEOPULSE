@@ -94,6 +94,23 @@ export interface BillingSnapshot {
   limits: PlanLimits
   auditsUsed: number
   websitesUsed: number
+  provider: 'STRIPE' | 'RAZORPAY' | null
+  stripeAvailable: boolean
+  razorpayAvailable: boolean
+}
+
+export interface RazorpayCheckout {
+  keyId: string
+  subscriptionId: string
+  organizationName: string
+  name: string
+  email: string
+}
+
+export interface RazorpayPayment {
+  razorpay_payment_id: string
+  razorpay_subscription_id: string
+  razorpay_signature: string
 }
 
 export const saasApi = {
@@ -113,6 +130,17 @@ export const saasApi = {
       .then((response) => response.data.url),
   portal: (orgId: number) =>
     api.post<{ url: string }>(`/orgs/${orgId}/billing/portal`).then((response) => response.data.url),
+  razorpaySubscribe: (orgId: number, plan: string, interval: string) =>
+    api
+      .post<RazorpayCheckout>(`/orgs/${orgId}/billing/razorpay/subscription`, { plan, interval })
+      .then((response) => response.data),
+  razorpayVerify: (orgId: number, payment: RazorpayPayment) =>
+    api.post(`/orgs/${orgId}/billing/razorpay/verify`, {
+      paymentId: payment.razorpay_payment_id,
+      subscriptionId: payment.razorpay_subscription_id,
+      signature: payment.razorpay_signature,
+    }),
+  razorpayCancel: (orgId: number) => api.post(`/orgs/${orgId}/billing/razorpay/cancel`),
 }
 
 export const alertApi = {

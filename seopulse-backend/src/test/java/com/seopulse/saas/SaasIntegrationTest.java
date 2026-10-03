@@ -80,7 +80,7 @@ class SaasIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(authed(get("/api/v1/orgs/" + orgId + "/billing"), user.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.planCode").value("FREE"))
-                .andExpect(jsonPath("$.limits.websites").value(1))
+                .andExpect(jsonPath("$.limits.websites").value(3))
                 .andExpect(jsonPath("$.websitesUsed").value(1));
 
         mvc.perform(authed(get("/api/v1/orgs/" + orgId + "/members"), user.accessToken()))
@@ -91,15 +91,25 @@ class SaasIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void freePlanRejectsSecondWebsiteWithPaymentRequired() throws Exception {
+    void freePlanRejectsFourthWebsiteWithPaymentRequired() throws Exception {
+        Project project = projectRepository.findById(projectId).orElseThrow();
+        for (int i = 0; i < 2; i++) {
+            websiteRepository.save(Website.builder()
+                    .name("Extra site " + i)
+                    .url("https://extra-" + UUID.randomUUID() + ".example.com")
+                    .status(WebsiteStatus.ACTIVE)
+                    .project(project)
+                    .build());
+        }
+
         mvc.perform(authed(post("/api/v1/projects/" + projectId + "/websites")
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"name\": \"Second\", \"url\": \"https://second.example.com\"}"),
+                                .content("{\"name\": \"Fourth\", \"url\": \"https://fourth.example.com\"}"),
                         user.accessToken()))
                 .andExpect(status().isPaymentRequired())
                 .andExpect(jsonPath("$.code").value("PLAN_LIMIT"))
                 .andExpect(jsonPath("$.meter").value("websites"))
-                .andExpect(jsonPath("$.limit").value(1));
+                .andExpect(jsonPath("$.limit").value(3));
     }
 
     @Test

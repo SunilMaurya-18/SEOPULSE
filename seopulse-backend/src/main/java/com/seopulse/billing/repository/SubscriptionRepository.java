@@ -12,5 +12,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
     Optional<Subscription> findByStripeSubscriptionId(String stripeSubscriptionId);
 
+    Optional<Subscription> findByRazorpaySubscriptionId(String razorpaySubscriptionId);
+
     List<Subscription> findByStatusNot(SubscriptionStatus status);
 }

@@ -16,6 +16,10 @@ public record RegisterRequest(
 
         @NotBlank(message = "Password is required")
         @Size(max = 72, message = "Password must not exceed 72 characters")
-        String password
+        String password,
+
+        /** Cloudflare Turnstile token; required only when CAPTCHA is configured. */
+        @Size(max = 4096)
+        String captchaToken
 ) {
 }

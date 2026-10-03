@@ -34,4 +34,8 @@ public class AuthProperties {
 
     /** Public URL of the frontend, used to build links in emails. */
     private String appBaseUrl = "http://localhost:5173";
+
+    /** OAuth client ID for "Sign in with Google". Blank disables it. */
+    private String googleClientId = "";
+    private String googleJwkSetUri = "https://www.googleapis.com/oauth2/v3/certs";
 }

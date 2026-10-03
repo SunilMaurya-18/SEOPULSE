@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -15,6 +16,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    Optional<User> findByGoogleSubject(String googleSubject);
+
+    @Transactional
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.role = com.seopulse.user.entity.Role.ADMIN WHERE u.email IN :emails AND u.role <> com.seopulse.user.entity.Role.ADMIN")
+    int promoteToAdmin(@Param("emails") Collection<String> emails);
 
     @Transactional
     @Modifying(clearAutomatically = true)

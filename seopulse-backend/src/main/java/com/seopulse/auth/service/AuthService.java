@@ -1,5 +1,7 @@
 package com.seopulse.auth.service;
 
+import com.seopulse.abuse.DisposableEmailChecker;
+import com.seopulse.admin.AdminBootstrap;
 import com.seopulse.auth.config.AuthProperties;
 import com.seopulse.auth.dto.AuthResponse;
 import com.seopulse.auth.dto.LoginRequest;
@@ -7,6 +9,7 @@ import com.seopulse.auth.dto.RegisterRequest;
 import com.seopulse.common.exception.AccountLockedException;
 import com.seopulse.common.exception.DuplicateResourceException;
 import com.seopulse.common.exception.InvalidCredentialsException;
+import com.seopulse.common.exception.InvalidStateException;
 import com.seopulse.organization.service.OrganizationProvisioningService;
 import com.seopulse.user.entity.Role;
 import com.seopulse.user.entity.User;
@@ -41,6 +44,8 @@ public class AuthService {
     private final AuthEmails authEmails;
     private final AuthProperties properties;
     private final OrganizationProvisioningService organizationProvisioningService;
+    private final DisposableEmailChecker disposableEmailChecker;
+    private final AdminBootstrap adminBootstrap;
 
     /** Compared against when the email is unknown, so timing does not reveal which accounts exist. */
     private final String dummyHash;
@@ -54,8 +59,11 @@ public class AuthService {
             EmailVerificationService emailVerificationService,
             AuthEmails authEmails,
             AuthProperties properties,
-            OrganizationProvisioningService organizationProvisioningService
+            OrganizationProvisioningService organizationProvisioningService,
+            DisposableEmailChecker disposableEmailChecker,
+            AdminBootstrap adminBootstrap
     ) {
+        this.adminBootstrap = adminBootstrap;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.passwordPolicy = passwordPolicy;
@@ -65,12 +73,14 @@ public class AuthService {
         this.authEmails = authEmails;
         this.properties = properties;
         this.organizationProvisioningService = organizationProvisioningService;
+        this.disposableEmailChecker = disposableEmailChecker;
         this.dummyHash = passwordEncoder.encode("seopulse-timing-equalizer");
     }
 
     public AuthSession register(RegisterRequest request) {
 
         String email = normalize(request.email());
+        disposableEmailChecker.requireAllowed(email);
 
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateResourceException("Email already exists");
@@ -131,6 +141,73 @@ public class AuthService {
         return startSession(user);
     }
 
+    /**
+     * Signs in with a verified Google identity, linking it to the account with
+     * the same email or creating a new account.
+     */
+    public AuthSession loginWithGoogle(GoogleIdTokenVerifier.GoogleIdentity identity) {
+
+        if (!identity.emailVerified()) {
+            throw new IllegalArgumentException("Verify your email with Google first, or sign up with a password.");
+        }
+        String email = normalize(identity.email());
+
+        User user = userRepository.findByGoogleSubject(identity.subject())
+                .or(() -> userRepository.findByEmail(email).map(existing -> linkGoogle(existing, identity.subject())))
+                .orElseGet(() -> createGoogleUser(identity, email));
+
+        Instant now = Instant.now();
+        if (user.isLocked(now)) {
+            throw new AccountLockedException(secondsUntil(user.getLockedUntil(), now));
+        }
+
+        log.info("User signed in with Google: userId={}", user.getId());
+
+        return startSession(user);
+    }
+
+    private User linkGoogle(User user, String googleSubject) {
+        if (user.getGoogleSubject() != null && !user.getGoogleSubject().equals(googleSubject)) {
+            throw new InvalidStateException("This email is already linked to a different Google account.");
+        }
+        if (!user.isEmailVerified()) {
+            // Whoever registered this unverified address may not own it: drop their password and sessions.
+            user.setPassword(passwordEncoder.encode(SecureTokens.generate()));
+            user.setEmailVerifiedAt(Instant.now());
+            refreshTokenService.revokeAll(user.getId());
+        }
+        user.setGoogleSubject(googleSubject);
+        log.info("Linked Google account: userId={}", user.getId());
+        return userRepository.save(user);
+    }
+
+    private User createGoogleUser(GoogleIdTokenVerifier.GoogleIdentity identity, String email) {
+        disposableEmailChecker.requireAllowed(email);
+
+        String name = identity.name() == null || identity.name().isBlank()
+                ? email.substring(0, email.indexOf('@'))
+                : identity.name().trim();
+        Instant now = Instant.now();
+        try {
+            User user = userRepository.save(User.builder()
+                    .name(name.length() > 100 ? name.substring(0, 100) : name)
+                    .email(email)
+                    // Unusable until the user sets one through "Forgot password".
+                    .password(passwordEncoder.encode(SecureTokens.generate()))
+                    .role(Role.USER)
+                    .googleSubject(identity.subject())
+                    .emailVerifiedAt(now)
+                    .termsAcceptedVersion("2026-09-30")
+                    .termsAcceptedAt(now)
+                    .build());
+            organizationProvisioningService.ensureFor(user);
+            log.info("User registered with Google: userId={}", user.getId());
+            return user;
+        } catch (DataIntegrityViolationException ex) {
+            throw new DuplicateResourceException("Email already exists");
+        }
+    }
+
     public AuthSession refresh(String rawRefreshToken) {
 
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
@@ -155,6 +232,7 @@ public class AuthService {
     }
 
     private AuthSession startSession(User user) {
+        user = adminBootstrap.promoteIfListed(user);
         RefreshTokenService.IssuedToken issued = refreshTokenService.issue(user);
         return new AuthSession(toResponse(user), issued.rawToken(), issued.ttl());
     }

@@ -63,6 +63,10 @@ export function AuthShell({
             Terms
           </Link>
           <span aria-hidden="true">·</span>
+          <Link to="/privacy" className="transition-colors hover:text-main">
+            Privacy
+          </Link>
+          <span aria-hidden="true">·</span>
           <Link to="/pricing" className="transition-colors hover:text-main">
             Pricing
           </Link>

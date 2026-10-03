@@ -3,6 +3,8 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { getErrorMessage } from '@/api/errors'
 import { AuthShell, PendingWebsiteNotice } from '@/components/auth/AuthShell'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
+import { captchaEnabled, Turnstile } from '@/components/security/Turnstile'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -15,7 +17,7 @@ import {
 import { useToast } from '@/lib/toast'
 
 export function RegisterPage() {
-  const { register, isAuthenticated } = useAuth()
+  const { register, loginWithGoogle, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { pushToast } = useToast()
@@ -30,6 +32,8 @@ export function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [captchaKey, setCaptchaKey] = useState(0)
 
   if (isAuthenticated) {
     if (pendingFromQuery) {
@@ -41,12 +45,16 @@ export function RegisterPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
+    if (captchaEnabled && !captchaToken) {
+      setError('Complete the security check and try again.')
+      return
+    }
     setLoading(true)
     try {
       if (pendingFromQuery) {
         setPendingWebsiteUrl(pendingFromQuery)
       }
-      const created = await register(name.trim(), email.trim(), password)
+      const created = await register(name.trim(), email.trim(), password, captchaToken ?? undefined)
       pushToast({
         tone: 'success',
         title: 'Account created',
@@ -59,6 +67,30 @@ export function RegisterPage() {
       navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, 'Unable to create account. Please try again.'))
+      setCaptchaKey((key) => key + 1)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleGoogle(credential: string) {
+    setError(null)
+    setLoading(true)
+    try {
+      if (pendingFromQuery) {
+        setPendingWebsiteUrl(pendingFromQuery)
+      }
+      await loginWithGoogle(credential)
+      pushToast({
+        tone: 'success',
+        title: 'Signed in with Google',
+        description: pendingFromQuery
+          ? 'Connecting your website…'
+          : 'Welcome to SEOPulse. Connect a website to run your first audit.',
+      })
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      setError(getErrorMessage(err, 'Google sign-in failed. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -95,6 +127,8 @@ export function RegisterPage() {
             {error}
           </Alert>
         )}
+
+        <GoogleSignInButton text="signup_with" onCredential={(credential) => void handleGoogle(credential)} />
 
         <Input
           id="name"
@@ -153,6 +187,8 @@ export function RegisterPage() {
           <p className="text-[12px] text-dim">Passwords found in known data breaches are rejected.</p>
         </div>
 
+        <Turnstile key={captchaKey} onToken={setCaptchaToken} className="flex justify-center" />
+
         <Button type="submit" size="lg" className="w-full" loading={loading}>
           Create account
         </Button>
@@ -161,6 +197,10 @@ export function RegisterPage() {
           By creating an account you agree to the{' '}
           <Link to="/terms" className="font-medium text-muted underline-offset-2 hover:text-main hover:underline">
             Terms
+          </Link>{' '}
+          and acknowledge the{' '}
+          <Link to="/privacy" className="font-medium text-muted underline-offset-2 hover:text-main hover:underline">
+            Privacy Policy
           </Link>
           .
         </p>

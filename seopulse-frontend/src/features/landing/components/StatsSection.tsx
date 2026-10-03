@@ -46,7 +46,7 @@ function Stat({
   const current = useCount(value, active)
   return (
     <div className="min-w-0 text-center">
-      <p className="font-mono text-5xl font-normal tracking-wide text-accent sm:text-6xl">
+      <p className="font-mono text-5xl font-semibold tracking-tight text-accent tabular-nums sm:text-6xl">
         {current}
         {suffix}
       </p>
@@ -65,7 +65,7 @@ export function StatsSection() {
     >
       <div className="starfield pointer-events-none absolute inset-0 opacity-80" aria-hidden />
       <div className="relative mx-auto max-w-6xl">
-        <h2 className="text-center font-mono text-3xl font-normal tracking-wide text-[#f2f5ea] sm:text-5xl">
+        <h2 className="text-center font-mono text-3xl font-semibold tracking-tight text-[#f2f5ea] sm:text-5xl">
           We take pride in the numbers that describe a run.
         </h2>
         <div className="mt-16 grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-5">

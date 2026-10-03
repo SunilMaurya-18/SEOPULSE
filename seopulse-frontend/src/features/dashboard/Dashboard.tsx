@@ -19,6 +19,7 @@ import { saasApi, type BillingSnapshot } from '@/api/saas'
 import type { Website } from '@/api/websites'
 import { useAuditSummary } from '@/api/queries/audits'
 import { useDashboard } from '@/api/queries/dashboard'
+import { isOnboardingOpen, useOnboarding } from '@/api/queries/onboarding'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { NextStepBanner } from '@/components/ui/NextStepBanner'
@@ -30,6 +31,7 @@ import { cn } from '@/lib/cn'
 import { hostOf, relativeTime } from '@/lib/format'
 import { useWorkspace } from '@/lib/workspace'
 import { EmailReportDialog } from './EmailReportDialog'
+import { OnboardingChecklist } from './OnboardingChecklist'
 
 const ACTIVE = new Set(['QUEUED', 'CRAWLING', 'ANALYZING'])
 
@@ -73,6 +75,7 @@ export function Dashboard() {
   const { projectId, project } = useWorkspace()
   const { user } = useAuth()
   const dashboard = useDashboard(projectId)
+  const onboarding = useOnboarding(projectId)
   const [billing, setBilling] = useState<BillingSnapshot | null>(null)
   const [emailing, setEmailing] = useState<Audit | null>(null)
   const [focus, setFocus] = useState<string>('all')
@@ -217,7 +220,18 @@ export function Dashboard() {
         </div>
       </header>
 
-      {phase !== 'report' && (
+      {isOnboardingOpen(onboarding.data) ? (
+        <div className="space-y-4">
+          {activeCrawl && <WorkflowRail phase={phase} compact />}
+          <OnboardingChecklist
+            projectId={projectId}
+            status={onboarding.data}
+            firstWebsiteId={websites[0]?.id ?? null}
+            activeAuditId={activeCrawl?.id ?? null}
+            latestCompletedAuditId={allAudits.find((audit) => audit.status === 'COMPLETED')?.id ?? null}
+          />
+        </div>
+      ) : phase !== 'report' && !onboarding.isPending && (
         <div className="space-y-4">
           <WorkflowRail phase={phase} />
           <NextStepBanner

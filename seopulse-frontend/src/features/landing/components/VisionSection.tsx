@@ -35,7 +35,7 @@ export function VisionSection() {
       <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-2 lg:gap-20">
         <h2
           className={cn(
-            'font-mono text-4xl leading-tight font-normal tracking-wide text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
+            'font-mono text-4xl leading-[1.08] font-semibold tracking-tight text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
             shown ? 'translate-y-0 opacity-100 blur-none' : 'translate-y-3 opacity-40 blur-md',
           )}
         >

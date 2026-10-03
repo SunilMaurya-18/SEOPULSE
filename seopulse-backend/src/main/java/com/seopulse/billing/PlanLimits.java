@@ -20,7 +20,7 @@ public record PlanLimits(
         int retentionDays
 ) {
 
-    public static final PlanLimits FALLBACK = new PlanLimits(1, 100, 5, 1, "NONE", false, false, 30);
+    public static final PlanLimits FALLBACK = new PlanLimits(3, 100, 5, 1, "NONE", false, false, 30);
 
     public static PlanLimits parse(String json, ObjectMapper mapper) {
         try {

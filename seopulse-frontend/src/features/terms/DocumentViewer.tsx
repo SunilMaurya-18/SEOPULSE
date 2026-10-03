@@ -1,5 +1,6 @@
 import { Copy } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 
 import { TERMS_VERSION } from './data'
 import { FormalNoticeForm } from './FormalNoticeForm'
@@ -356,11 +357,11 @@ export function DocumentViewer({ onCopyCitation }: DocumentViewerProps) {
             base fees, overages, and applicable taxes.
           </LegalP>
           <LegalP>
-            <strong>5.2 14-Day Discretionary Refund Window:</strong> Initial
-            recurring subscriptions are eligible for an unconditional 100%
-            refund within fourteen (14) calendar days of transaction settlement,
-            provided your crawl consumption has not exceeded 15% of your plan’s
-            monthly URL quota allocation.
+            <strong>5.2 Refunds:</strong> Refunds are handled under our{' '}
+            <Link to="/refund-policy" className="underline underline-offset-2">
+              Refund Policy
+            </Link>
+            , which forms part of these terms.
           </LegalP>
         </div>
       </ClauseBlock>

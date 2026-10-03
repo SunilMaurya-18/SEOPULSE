@@ -10,7 +10,7 @@ const plans = [
     name: 'Free',
     monthly: { usd: 0, inr: 0 },
     yearly: { usd: 0, inr: 0 },
-    points: ['1 website', '100 pages per audit', '5 audits a month', '1 member'],
+    points: ['3 websites', '100 pages per audit', '5 audits a month', '1 member'],
   },
   {
     code: 'PRO',
@@ -36,11 +36,11 @@ export function PricingPage() {
   }, [])
 
   return (
-    <div className="dark min-h-dvh bg-black text-[#f2f5ea]">
+    <div className="marketing dark min-h-dvh bg-black text-[#f2f5ea]">
       <MarketingHeader />
       <main className="mx-auto max-w-6xl px-5 pt-36 pb-24 md:px-[60px]">
         <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">Pricing</p>
-        <h1 className="mt-3 max-w-xl font-mono text-4xl leading-tight sm:text-6xl">Plans that stay out of the way.</h1>
+        <h1 className="mt-3 max-w-xl font-mono text-4xl leading-[1.08] font-semibold tracking-tight sm:text-6xl">Plans that stay out of the way.</h1>
         <div className="mt-8 inline-flex rounded-full border border-white/15 p-1 font-mono text-sm">
           <button type="button" className={!yearly ? 'rounded-full bg-accent px-4 py-2 text-on-accent' : 'px-4 py-2 text-[#8b93a1]'} onClick={() => setYearly(false)}>
             Monthly

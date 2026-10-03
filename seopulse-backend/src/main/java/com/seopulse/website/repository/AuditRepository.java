@@ -55,6 +55,8 @@ public interface AuditRepository extends JpaRepository<Audit, Long> {
             Long websiteId
     );
 
+    List<Audit> findByWebsiteIdOrderByCreatedAtAsc(Long websiteId);
+
     @Query("""
         SELECT a
         FROM Audit a

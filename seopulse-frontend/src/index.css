@@ -186,6 +186,15 @@ body.app-shell {
   letter-spacing: -0.006em;
 }
 
+.marketing {
+  --font-sans: "Geist", "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: var(--font-sans);
+
+  font-family: var(--font-sans);
+  letter-spacing: -0.011em;
+}
+
 .dark body.app-shell {
   --sp-canvas: #000000;
   --sp-surface: #161618;
@@ -500,20 +509,22 @@ body.app-shell {
     animation: star-drift 28s linear infinite alternate;
   }
 
-  .parallax-slow,
-  .parallax-mid,
-  .parallax-fast {
-    animation: drift-slow linear both;
-    animation-timeline: view();
-    animation-range: contain 0% contain 100%;
-  }
+  @supports (animation-timeline: view()) {
+    .parallax-slow,
+    .parallax-mid,
+    .parallax-fast {
+      animation: drift-slow linear both;
+      animation-timeline: view();
+      animation-range: contain 0% contain 100%;
+    }
 
-  .parallax-mid {
-    animation-name: drift-mid;
-  }
+    .parallax-mid {
+      animation-name: drift-mid;
+    }
 
-  .parallax-fast {
-    animation-name: drift-fast;
+    .parallax-fast {
+      animation-name: drift-fast;
+    }
   }
 
   .caret-blink {

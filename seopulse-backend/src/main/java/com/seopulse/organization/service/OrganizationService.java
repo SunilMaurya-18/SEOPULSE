@@ -38,6 +38,7 @@ public class OrganizationService {
     private final OrgAuditLogRepository auditLogRepository;
     private final OrganizationAccessService accessService;
     private final OrganizationProvisioningService provisioningService;
+    private final OrganizationPurger organizationPurger;
     private final EntitlementService entitlementService;
     private final UserRepository userRepository;
     private final EmailOutboxService emailOutboxService;
@@ -80,7 +81,7 @@ public class OrganizationService {
     public void delete(Long organizationId, Long userId) {
         accessService.requireRole(organizationId, userId, OrganizationRole.OWNER);
         record(organizationId, userId, "ORG_DELETED", null);
-        organizationRepository.deleteById(organizationId);
+        organizationPurger.purge(organizationId);
     }
 
     @Transactional(readOnly = true)

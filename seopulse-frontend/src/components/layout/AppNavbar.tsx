@@ -1,6 +1,6 @@
 import '@designcodeio/threeui/style.css'
 
-import { LogOut, Moon, Settings, Sun } from 'lucide-react'
+import { LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
@@ -145,6 +145,12 @@ function AccountMenu() {
               <Settings className="h-4 w-4 opacity-70" />
               Settings
             </Link>
+            {user?.role === 'ADMIN' && (
+              <Link role="menuitem" to="/admin" className={itemClass} onClick={() => setOpen(false)}>
+                <ShieldCheck className="h-4 w-4 opacity-70" />
+                Admin
+              </Link>
+            )}
             <button role="menuitem" type="button" className={itemClass} onClick={toggleTheme}>
               {theme === 'dark' ? <Sun className="h-4 w-4 opacity-70" /> : <Moon className="h-4 w-4 opacity-70" />}
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}

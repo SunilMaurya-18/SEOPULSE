@@ -8,7 +8,7 @@ export function FinalCtaSection() {
   return (
     <section
       ref={ref}
-      className="relative border-b border-white/80 bg-[#05070a] px-5 py-24 md:px-[60px] md:py-32"
+      className="relative border-b border-white/10 bg-[#05070a] px-5 py-24 md:px-[60px] md:py-32"
     >
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_at_top,rgba(70,100,120,0.35),transparent_70%)]"
@@ -17,7 +17,7 @@ export function FinalCtaSection() {
       <div className="relative mx-auto grid max-w-6xl items-start gap-10 lg:grid-cols-[1.1fr_auto_0.9fr] lg:gap-12">
         <h2
           className={cn(
-            'font-mono text-4xl leading-tight font-normal tracking-wide text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
+            'font-mono text-4xl leading-[1.08] font-semibold tracking-tight text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
             shown ? 'opacity-100 blur-none' : 'opacity-40 blur-md',
           )}
         >

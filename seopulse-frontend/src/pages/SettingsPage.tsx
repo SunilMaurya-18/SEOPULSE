@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { getErrorMessage } from '@/api/errors'
 import { saasApi } from '@/api/saas'
+import { AccountDataSection } from '@/features/settings/AccountDataSection'
 import { SettingsGroup, SettingsRow } from '@/features/settings/SettingsGroup'
 import { WorkspacePlan } from '@/features/settings/WorkspacePlan'
 import { useAuth } from '@/lib/auth'
@@ -81,7 +82,7 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      <PageHeader title="Settings" description="Your account, team, billing and appearance." />
+      <PageHeader title="Settings" description="Your account, team, billing, appearance and data." />
 
       <div className="widget flex items-center gap-4 p-5 sm:p-6">
         <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff8a65] via-[#f5504a] to-[#c2185b] text-xl font-semibold text-white shadow-[0_10px_24px_-10px_rgb(245_80_74/0.8)]">
@@ -164,6 +165,8 @@ export function SettingsPage() {
           />
         </button>
       </SettingsGroup>
+
+      <AccountDataSection />
     </div>
   )
 }

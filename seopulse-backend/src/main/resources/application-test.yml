@@ -19,6 +19,9 @@ seopulse:
     general:
       - capacity: 100000
         period: 1m
+  web-vitals:
+    # Never call Google from tests; WebVitalsIntegrationTest points it at a local server.
+    enabled: false
   worker:
     cancellation-poll-ms: 200
     block-timeout-seconds: 1

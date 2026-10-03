@@ -82,6 +82,13 @@ public class WebsiteCrawler {
     }
 
     public CrawlResult crawl(String startUrl, int maxPages) throws InterruptedException {
+        return crawl(startUrl, maxPages, Duration.ofMinutes(properties.getMaxDurationMinutes()));
+    }
+
+    /**
+     * @param budget time after which no new request starts; requests in flight still finish
+     */
+    public CrawlResult crawl(String startUrl, int maxPages, Duration budget) throws InterruptedException {
 
         URI validatedStartUrl = urlValidator.validate(startUrl);
 
@@ -100,7 +107,7 @@ public class WebsiteCrawler {
                 properties.getConcurrency()
         );
 
-        CrawlResult result = new CrawlSession(normalizedStartUrl, validatedStartUrl.getHost(), maxPages).run();
+        CrawlResult result = new CrawlSession(normalizedStartUrl, validatedStartUrl.getHost(), maxPages, budget).run();
 
         log.info(
                 "Website crawl finished: startUrl={}, pages={}, timedOut={}",
@@ -131,12 +138,11 @@ public class WebsiteCrawler {
 
         private volatile String startFinalUrl;
 
-        CrawlSession(String startUrl, String startHost, int pageCap) {
+        CrawlSession(String startUrl, String startHost, int pageCap, Duration budget) {
             this.startUrl = startUrl;
             this.startFinalUrl = startUrl;
             this.scope = new SiteScope(startHost);
-            this.deadlineNanos = System.nanoTime()
-                    + TimeUnit.MINUTES.toNanos(properties.getMaxDurationMinutes());
+            this.deadlineNanos = System.nanoTime() + budget.toNanos();
             this.maxPages = Math.max(1, pageCap);
             this.maxVisited = maxPages * 5;
         }

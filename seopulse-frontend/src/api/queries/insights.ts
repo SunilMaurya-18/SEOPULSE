@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { auditApi } from '@/api/audits'
+import { webVitalsApi } from '@/api/webVitals'
 import { queryKeys } from './keys'
 
 const REPORT_POLL_MS = 2500
+const WEB_VITALS_POLL_MS = 5000
 
 export function useAuditComparison(projectId: number, auditId: number, enabled = true) {
   return useQuery({
@@ -22,6 +24,16 @@ export function useWebsiteTrend(projectId: number, websiteId: number | null | un
     enabled: typeof websiteId === 'number',
     retry: false,
     staleTime: 60_000,
+  })
+}
+
+export function useAuditWebVitals(projectId: number, auditId: number, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.auditWebVitals(projectId, auditId),
+    queryFn: () => webVitalsApi.get(projectId, auditId),
+    enabled: enabled && Number.isFinite(auditId),
+    retry: false,
+    refetchInterval: (query) => (query.state.data?.state === 'PENDING' ? WEB_VITALS_POLL_MS : false),
   })
 }
 

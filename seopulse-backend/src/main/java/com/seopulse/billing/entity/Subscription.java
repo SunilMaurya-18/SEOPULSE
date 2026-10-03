@@ -30,6 +30,13 @@ public class Subscription {
     @Column(name = "stripe_subscription_id")
     private String stripeSubscriptionId;
 
+    @Column(name = "razorpay_subscription_id")
+    private String razorpaySubscriptionId;
+
+    /** "STRIPE" or "RAZORPAY" once the workspace has paid; null on the free plan. */
+    @Column(name = "billing_provider", length = 20)
+    private String billingProvider;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private SubscriptionStatus status;

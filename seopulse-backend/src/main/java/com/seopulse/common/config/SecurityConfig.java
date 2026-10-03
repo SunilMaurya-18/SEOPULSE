@@ -92,11 +92,21 @@ public class SecurityConfig {
                                 .requestMatchers("/api/v1/auth/**")
                                 .permitAll()
 
-                                .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhook")
+                                .requestMatchers(HttpMethod.POST, "/api/v1/billing/webhook", "/api/v1/billing/razorpay/webhook")
                                 .permitAll()
+
+                                // Platform operators; AdminService also re-checks the role in the database.
+                                .requestMatchers("/api/v1/admin/**")
+                                .hasRole("ADMIN")
 
                                 // Shared reports and signed PDF downloads
                                 .requestMatchers(HttpMethod.GET, "/api/v1/public/**")
+                                .permitAll()
+
+                                .requestMatchers(HttpMethod.POST, "/api/v1/public/newsletter/**")
+                                .permitAll()
+
+                                .requestMatchers(HttpMethod.POST, "/api/v1/public/quick-check")
                                 .permitAll()
 
                                 // Health checks and metrics scraping. In prod the

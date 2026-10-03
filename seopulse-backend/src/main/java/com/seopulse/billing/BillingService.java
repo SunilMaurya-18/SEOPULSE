@@ -1,6 +1,7 @@
 package com.seopulse.billing;
 
 import com.seopulse.billing.entity.Plan;
+import com.seopulse.billing.razorpay.RazorpayBillingService;
 import com.seopulse.billing.entity.StripeEventRecord;
 import com.seopulse.billing.entity.Subscription;
 import com.seopulse.billing.entity.SubscriptionStatus;
@@ -52,6 +53,7 @@ public class BillingService {
     private final EntitlementService entitlementService;
     private final EmailOutboxService emailOutboxService;
     private final WebsiteRepository websiteRepository;
+    private final RazorpayBillingService razorpayBillingService;
 
     @Transactional(readOnly = true)
     public BillingSnapshot snapshot(Long organizationId, Long userId) {
@@ -72,13 +74,22 @@ public class BillingService {
                 subscription.isCancelAtPeriodEnd(),
                 limits,
                 entitlementService.auditsUsed(organizationId),
-                websites
+                websites,
+                subscription.getBillingProvider(),
+                properties.stripeEnabled(),
+                razorpayBillingService.isEnabled()
         );
     }
 
     public String checkout(Long organizationId, Long userId, String planCode, String interval) {
         accessService.requireRole(organizationId, userId, OrganizationRole.OWNER);
         requireStripe();
+        subscriptionRepository.findByOrganizationId(organizationId)
+                .filter(current -> RazorpayBillingService.PROVIDER.equals(current.getBillingProvider())
+                        && current.getStatus() != SubscriptionStatus.CANCELED)
+                .ifPresent(current -> {
+                    throw new InvalidStateException("This workspace pays through Razorpay. Cancel that subscription first.");
+                });
         String priceId = properties.priceId(planCode, interval);
         if (priceId == null || priceId.isBlank()) {
             throw new InvalidStateException("Stripe price is not configured for " + planCode);
@@ -125,6 +136,33 @@ public class BillingService {
         }
     }
 
+    /** Ends a paid subscription immediately, so a deleted workspace is never billed again. */
+    public void cancelBeforeDeletion(Long organizationId) {
+        Subscription subscription = subscriptionRepository.findByOrganizationId(organizationId).orElse(null);
+        if (subscription == null || subscription.getStatus() == SubscriptionStatus.CANCELED) {
+            return;
+        }
+        if (RazorpayBillingService.PROVIDER.equals(subscription.getBillingProvider())
+                && subscription.getRazorpaySubscriptionId() != null) {
+            razorpayBillingService.cancelImmediately(subscription);
+            return;
+        }
+        if (subscription.getStripeSubscriptionId() == null) {
+            return;
+        }
+        if (!properties.stripeEnabled()) {
+            log.warn("Stripe is not configured; subscription left as is: organizationId={}", organizationId);
+            return;
+        }
+        Stripe.apiKey = properties.getStripeSecretKey();
+        try {
+            com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId()).cancel();
+        } catch (StripeException ex) {
+            throw new InvalidStateException(
+                    "Could not cancel the subscription for this workspace. Cancel it from billing, then try again.");
+        }
+    }
+
     @Transactional
     public void handleWebhook(String payload, String signature) {
         if (!properties.stripeEnabled() || properties.getStripeWebhookSecret() == null
@@ -151,14 +189,24 @@ public class BillingService {
     @Scheduled(cron = "0 30 3 * * *")
     @Transactional
     public void reconcile() {
-        if (!properties.stripeEnabled()) {
-            return;
-        }
-        Stripe.apiKey = properties.getStripeSecretKey();
         for (Subscription subscription : subscriptionRepository.findByStatusNot(SubscriptionStatus.CANCELED)) {
-            if (subscription.getStripeSubscriptionId() == null || "FREE".equals(subscription.getPlan().getCode())) {
+            if ("FREE".equals(subscription.getPlan().getCode())) {
                 continue;
             }
+            if (RazorpayBillingService.PROVIDER.equals(subscription.getBillingProvider())) {
+                if (razorpayBillingService.isEnabled()) {
+                    try {
+                        razorpayBillingService.refresh(subscription.getRazorpaySubscriptionId());
+                    } catch (RuntimeException ex) {
+                        log.warn("Razorpay reconciliation skipped: subscriptionId={}", subscription.getRazorpaySubscriptionId());
+                    }
+                }
+                continue;
+            }
+            if (subscription.getStripeSubscriptionId() == null || !properties.stripeEnabled()) {
+                continue;
+            }
+            Stripe.apiKey = properties.getStripeSecretKey();
             try {
                 applyStripeSubscription(com.stripe.model.Subscription.retrieve(subscription.getStripeSubscriptionId()));
             } catch (StripeException ex) {
@@ -208,6 +256,9 @@ public class BillingService {
         SubscriptionStatus status = mapStatus(stripeSubscription.getStatus());
         subscription.setStripeSubscriptionId(stripeSubscription.getId());
         subscription.setStatus(status);
+        subscription.setBillingProvider(status == SubscriptionStatus.CANCELED || status == SubscriptionStatus.UNPAID
+                ? null
+                : "STRIPE");
         subscription.setCancelAtPeriodEnd(Boolean.TRUE.equals(stripeSubscription.getCancelAtPeriodEnd()));
         if (stripeSubscription.getTrialEnd() != null) {
             subscription.setTrialEnd(Instant.ofEpochSecond(stripeSubscription.getTrialEnd()));
@@ -289,7 +340,11 @@ public class BillingService {
             boolean cancelAtPeriodEnd,
             PlanLimits limits,
             int auditsUsed,
-            int websitesUsed
+            int websitesUsed,
+            /** "STRIPE", "RAZORPAY", or null on the free plan. */
+            String provider,
+            boolean stripeAvailable,
+            boolean razorpayAvailable
     ) {
     }
 }

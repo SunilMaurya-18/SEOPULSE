@@ -30,6 +30,7 @@ Connect a website  →  Run or schedule audits  →  Crawl and analyze  →  Rev
 
 ### Product
 
+- **Free quick check.** Visitors enter a URL on the landing page and get a score and top issues for up to 5 pages, without signing up; nothing is saved, and the result hands the URL straight into sign-up.
 - **Websites.** Connect any public HTTP/HTTPS site; URLs are validated and private or internal hosts are refused.
 - **Audits.** Queue a crawl and follow it live (`QUEUED → CRAWLING → ANALYZING → COMPLETED`) over Server-Sent Events, with cancellation at any point.
 - **On-page analysis.** Titles, meta descriptions, headings, canonicals, links, images, content and HTTP status for every crawled page, plus site-wide checks (HTTPS, sitemap, robots.txt, duplicate titles, broken external links) and social and structured-data signals.
@@ -41,12 +42,15 @@ Connect a website  →  Run or schedule audits  →  Crawl and analyze  →  Rev
 - **Page inventory.** Every crawled URL with its status, title, word count and signals, including redirects and robots-blocked pages.
 - **Reports.** Server-rendered PDF reports (white-label on Agency, watermarked on Free), revocable share links that work without an account, a printable HTML report or JSON export, and email delivery. Scheduled audits email a share link to the organization's owners and admins.
 - **Data retention.** Page-level details are kept for 30, 180 or 365 days by plan; scores, counts and trends are kept for good.
-- **Workspaces and teams.** Organizations with roles (owner, admin, member), email invitations, and Free, Pro and Agency plans with usage limits and Stripe checkout.
+- **Core Web Vitals.** After each completed audit the homepage is measured with PageSpeed Insights (lab LCP, CLS, TBT, FCP and Speed Index, plus real-user field data when Google has it).
+- **Onboarding.** A dismissible dashboard checklist walks new workspaces through adding a site, running an audit, fixing issues and setting up alerts.
+- **Workspaces and teams.** Organizations with roles (owner, admin, member), email invitations, and Free, Pro and Agency plans with usage limits, Stripe checkout and Razorpay subscriptions for INR payments.
+- **Admin console.** Platform admins get `/admin` with sign-up, workspace and audit stats, user search and unlock, workspace usage and recent failed audits.
 - **Interface.** An Apple-inspired dashboard with a floating command-bar navigation, light and dark themes, and a responsive layout down to phones.
 
 ### Platform
 
-- **Accounts.** Short-lived JWT access tokens held in memory, rotating `HttpOnly` refresh cookies with reuse detection, email verification, password reset, breached-password checks (Have I Been Pwned, k-anonymity) and account lockout after repeated failures.
+- **Accounts.** Short-lived JWT access tokens held in memory, rotating `HttpOnly` refresh cookies with reuse detection, email verification, password reset, breached-password checks (Have I Been Pwned, k-anonymity) and account lockout after repeated failures. Optional "Continue with Google" sign-in, throwaway-email blocking and Cloudflare Turnstile CAPTCHA on sign-up and the quick check. Users can download their data or delete their account from Settings.
 - **Polite, safe crawler.** Honours robots.txt (RFC 9309) and sitemaps, spaces requests per host, backs off on `429`/`503`, and checks every resolved IP against private and reserved ranges (which also defeats DNS rebinding). Only ports 80 and 443 are allowed.
 - **Scalable workers.** Audits flow through a transactional outbox into a Redis Stream; any number of stateless workers consume it with retries, time budgets, stale-job recovery and a stuck-audit reaper.
 - **Email outbox.** Verification, reset, lockout, invitation and report emails are queued in Postgres and delivered through Resend or SMTP.
@@ -212,6 +216,11 @@ The `prod` profile refuses to start with a weak `JWT_SECRET`, the default databa
 | `SEOPULSE_AUTH_REFRESH_COOKIE_SECURE` | `true` (`false` in `dev`) | `Secure` flag on the refresh cookie |
 | `SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` | Block audits until the email is verified (currently disabled) |
 | `SEOPULSE_AUTH_BREACHED_PASSWORD_CHECK` | `true` | Reject passwords found in known breaches (fails open) |
+| `GOOGLE_CLIENT_ID` | empty (off) | OAuth web client ID for "Continue with Google"; use the same value for `VITE_GOOGLE_CLIENT_ID` |
+| `SEOPULSE_BLOCK_DISPOSABLE_EMAILS` | `true` | Refuse sign-ups from throwaway email domains |
+| `TURNSTILE_SECRET_KEY` | empty (off) | Cloudflare Turnstile secret; when set, sign-up and the quick check require a CAPTCHA token |
+| `SEOPULSE_ADMIN_EMAILS` | empty | Comma-separated emails promoted to platform admin at startup and on sign-in |
+| `PAGESPEED_API_KEY` / `SEOPULSE_WEB_VITALS_ENABLED` | empty / `true` | PageSpeed Insights key for Core Web Vitals (works without a key at a low shared quota) |
 | `SEOPULSE_APP_BASE_URL` | `http://localhost:5173` | Frontend origin used in email links |
 | `CORS_ALLOWED_ORIGINS` | `localhost:5173/5174` in `dev` | Comma-separated allowed origins |
 | `SEOPULSE_BOT_INFO_URL` | `http://localhost:5173/bot` | Public `/bot` page embedded in the crawler user agent |
@@ -230,7 +239,7 @@ Crawler limits live under `seopulse.crawler.*`: `max-pages` (500), `max-depth` (
 | `SEOPULSE_REPORTS_S3_BUCKET` / `_REGION` / `_ENDPOINT` / `_PATH_STYLE` | empty / `us-east-1` / empty / `false` | Store PDFs in S3 or an S3-compatible service instead (credentials come from the standard AWS variables) |
 | `SEOPULSE_REPORTS_SIGNING_KEY` | derived from `JWT_SECRET` | HMAC key for the 10-minute signed PDF download links |
 
-Other settings under `seopulse.*`: `reports.default-share-days` (30), `reports.max-share-days` (365), `reports.download-url-ttl` (10m), `alerts.dispatch-interval-ms` (10 s), and `retention.cron` (`0 15 2 * * *`, UTC). Alert deliveries are retried up to six times with backoff (1 min to 6 h). Webhooks must use HTTPS, are never redirected, and are checked against private networks like the crawler.
+Other settings under `seopulse.*`: `reports.default-share-days` (30), `reports.max-share-days` (365), `reports.download-url-ttl` (10m), `alerts.dispatch-interval-ms` (10 s), `retention.cron` (`0 15 2 * * *`, UTC), and for the landing-page quick check `quick-check.max-pages` (5), `quick-check.budget` (15s) and `quick-check.max-concurrent` (4 per API instance). Alert deliveries are retried up to six times with backoff (1 min to 6 h). Webhooks must use HTTPS, are never redirected, and are checked against private networks like the crawler.
 
 Webhook requests carry `X-SEOPulse-Event`, `X-SEOPulse-Delivery` and `X-SEOPulse-Signature: t=<unix seconds>,v1=<hex>`, where `v1` is the HMAC-SHA256 of `"<t>.<raw body>"` with the rule's `whsec_…` secret. Reject requests whose `t` is more than five minutes old.
 
@@ -250,16 +259,22 @@ Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and the price IDs `STRIPE_PRICE
 
 | Plan | Websites | Pages per audit | Audits per month | Members | Schedules | Slack and webhooks | White-label | Details kept |
 |---|---:|---:|---:|---:|---|---|---|---:|
-| Free | 1 | 100 | 5 | 1 | none | no | no (watermarked) | 30 days |
+| Free | 3 | 100 | 5 | 1 | none | no | no (watermarked) | 30 days |
 | Pro | 10 | 2,000 | 100 | 3 | weekly | yes | no | 180 days |
 | Agency | 50 | 10,000 | 1,000 | 15 | daily | yes | yes | 365 days |
 
+**Razorpay (INR, UPI and Indian cards).** Create four subscription plans in the Razorpay dashboard and set `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `RAZORPAY_PLAN_PRO_MONTHLY`, `RAZORPAY_PLAN_PRO_YEARLY`, `RAZORPAY_PLAN_AGENCY_MONTHLY` and `RAZORPAY_PLAN_AGENCY_YEARLY`. Add a webhook at `https://<domain>/api/v1/billing/razorpay/webhook` for the `subscription.*` events (at least `activated`, `charged`, `pending`, `halted`, `cancelled` and `completed`). When both providers are configured, Settings shows a USD/INR switch (INR is preselected for India); with only one, that provider is used. A workspace can only have one paid subscription at a time, and the nightly reconcile refreshes Razorpay subscriptions too.
 ### Frontend
 
 | Variable | Purpose |
 |---|---|
 | `VITE_API_BASE_URL` | API base URL, e.g. `http://localhost:8082/api/v1` (production images use the relative `/api/v1`) |
 | `VITE_SENTRY_DSN` | Optional browser error reporting |
+| `VITE_CONTACT_EMAIL` | Support address shown on the privacy and refund pages (default `support@seopulse.app`) |
+| `VITE_GOOGLE_CLIENT_ID` | Shows "Continue with Google" on sign-in and sign-up (same value as `GOOGLE_CLIENT_ID`) |
+| `VITE_TURNSTILE_SITE_KEY` | Shows the Turnstile CAPTCHA on sign-up and the quick check (pair with `TURNSTILE_SECRET_KEY`) |
+
+The production Content-Security-Policy in `deploy/Caddyfile` already allows Cloudflare Turnstile, Google Identity Services and Razorpay Checkout.
 
 Production builds fail without `VITE_API_BASE_URL`; see [`.env.production.example`](seopulse-frontend/.env.production.example) for release tagging and Sentry source-map upload.
 
@@ -271,20 +286,23 @@ All endpoints live under `/api/v1`. The full, interactive contract is in Swagger
 
 - Authenticate with `Authorization: Bearer <accessToken>`.
 - Errors are RFC 9457 problem responses (`application/problem+json`) with a machine-readable `code` and a `requestId` that matches the `X-Request-Id` header and the server logs.
-- Rate limits return `429` with `Retry-After` and `X-RateLimit-*`: login 5/min and 20/hour, register 5/hour, forgot-password 3/hour, audit creation 10/hour per user, everything else 300/min.
+- Rate limits return `429` with `Retry-After` and `X-RateLimit-*`: login 5/min and 20/hour, register 5/hour, forgot-password 3/hour, audit creation 10/hour per user, landing-page quick checks 5/hour and 15/day per IP plus 10/hour per checked site, everything else 300/min.
 
 | Area | Endpoints |
 |---|---|
-| **Auth** | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`, `/auth/verify-email`, `/auth/resend-verification`, `/auth/forgot-password`, `/auth/reset-password` |
+| **Auth** | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`, `/auth/verify-email`, `/auth/resend-verification`, `/auth/forgot-password`, `/auth/reset-password`, `/auth/google` |
 | **Organizations** | `GET, POST /orgs` · `PATCH, DELETE /orgs/{orgId}` · `GET /orgs/{orgId}/members` · `PATCH, DELETE /orgs/{orgId}/members/{userId}` · `GET, POST /orgs/{orgId}/invitations` · `DELETE /orgs/{orgId}/invitations/{id}` · `POST /orgs/invitations/accept` · `POST /orgs/{orgId}/leave` |
-| **Billing** | `GET /orgs/{orgId}/billing` · `POST /orgs/{orgId}/billing/checkout` · `POST /orgs/{orgId}/billing/portal` · `POST /billing/webhook` (Stripe) |
+| **Billing** | `GET /orgs/{orgId}/billing` · `POST /orgs/{orgId}/billing/checkout` · `POST /orgs/{orgId}/billing/portal` · `POST /billing/webhook` (Stripe) · `POST /orgs/{orgId}/billing/razorpay/subscription`, `/razorpay/verify`, `/razorpay/cancel` · `POST /billing/razorpay/webhook` |
+| **Onboarding** | `GET /projects/{projectId}/onboarding` · `POST /onboarding/dismiss` |
+| **Admin** (platform admins) | `GET /admin/stats` · `GET /admin/users?q=` · `POST /admin/users/{id}/unlock` · `GET /admin/organizations?q=` · `GET /admin/audits/failed` |
 | **Projects** | `GET, POST /projects` · `GET, DELETE /projects/{projectId}` · `GET /projects/{projectId}/summary` |
 | **Websites** | `GET, POST /projects/{projectId}/websites` · `GET /projects/{projectId}/websites/{websiteId}` · `GET /…/websites/{websiteId}/trend?limit=30` · `GET, PUT, DELETE /…/websites/{websiteId}/schedule` |
-| **Audits** | `GET, POST /projects/{projectId}/audits` · then under `/projects/{projectId}/audits/{auditId}`: `GET` · `GET /summary` · `GET /pages` · `GET /issues` · `POST /cancel` · `POST /email` · `GET /events` (Server-Sent Events) · `GET /compare?baseline=` |
+| **Audits** | `GET, POST /projects/{projectId}/audits` · then under `/projects/{projectId}/audits/{auditId}`: `GET` · `GET /summary` · `GET /pages` · `GET /issues` · `POST /cancel` · `POST /email` · `GET /events` (Server-Sent Events) · `GET /compare?baseline=` · `GET /web-vitals` |
 | **Reports** | Under `/projects/{projectId}/audits/{auditId}`: `POST, GET /reports` · `POST /reports/{id}/download-url` · `POST, GET /shares` · `DELETE /shares/{id}` |
 | **Alerts** | `GET, POST /orgs/{orgId}/alerts` · `PUT, DELETE /orgs/{orgId}/alerts/{id}` · `POST /orgs/{orgId}/alerts/{id}/test` · `POST /orgs/{orgId}/alerts/{id}/rotate-secret` · `GET /orgs/{orgId}/alerts/deliveries` |
 | **Branding** | `GET, PUT, DELETE /orgs/{orgId}/branding` |
-| **Public** (no auth) | `GET /public/reports/{token}` · `GET /public/reports/{token}/pdf` · `GET /public/report-files/{id}?expires=&sig=` |
+| **Account** | `GET /account/export` (JSON download) · `POST /account/delete` (requires the current password) |
+| **Public** (no auth) | `GET /public/reports/{token}` · `GET /public/reports/{token}/pdf` · `GET /public/report-files/{id}?expires=&sig=` · `POST /public/newsletter/subscribe`, `/public/newsletter/confirm`, `/public/newsletter/unsubscribe` · `POST /public/quick-check` |
 | **Health** | `GET /health` |
 
 The refresh token is an `HttpOnly; SameSite=Strict` cookie scoped to `/api/v1/auth`; `refresh` and `logout` also require an `X-Requested-With` header. Presenting an already-rotated refresh token revokes the whole session family.
@@ -293,8 +311,10 @@ The refresh token is an `HttpOnly; SameSite=Strict` cookie scoped to `/api/v1/au
 
 | Route | Screen |
 |---|---|
-| `/` | Landing page with quick-start URL handoff |
+| `/` | Landing page with a free quick check and URL handoff to sign-up |
 | `/pricing`, `/terms`, `/bot` | Plans, terms of service, crawler information |
+| `/privacy`, `/refund-policy` | Privacy and refund policies |
+| `/newsletter/confirm?token=`, `/newsletter/unsubscribe?token=` | Mailing list confirmation and unsubscribe |
 | `/login`, `/register` | Sign in and create account |
 | `/forgot-password`, `/reset-password?token=`, `/verify-email?token=` | Account recovery and verification |
 | `/dashboard` | Workspace overview with KPIs, trends and next steps |
@@ -302,7 +322,8 @@ The refresh token is an `HttpOnly; SameSite=Strict` cookie scoped to `/api/v1/au
 | `/audits`, `/audits/:auditId` | Audit history, live crawl, changes since the last audit, category scores, trend, PDF reports, share links and email |
 | `/audits/:auditId/pages`, `/audits/:auditId/issues` | Page inventory and issues for one audit (with New badges and a "new since last audit" filter) |
 | `/issues`, `/pages` | Cross-site issue and page explorers |
-| `/settings` | Account, theme, sessions, workspace, plan, team, alerts and report branding |
+| `/settings` | Account, theme, sessions, workspace, plan, team, alerts, report branding, data export and account deletion |
+| `/admin` | Platform admin console (admins only) |
 | `/r/:token` | Public shared report (no sign-in, not indexed) |
 
 Signed-in routes are lazy-loaded behind error boundaries. Server state uses TanStack Query; the access token lives only in memory and a 401 triggers a single shared refresh before requests are retried.
@@ -401,7 +422,7 @@ Use Ubuntu 24.04 LTS with about 4 vCPU, 8 GB RAM and 80 GB SSD. Staging should b
 1. **Environments.** Create `staging` and `production` under *Settings → Environments*; add yourself as a required reviewer on `production`, and optionally restrict it to `v*` tags.
 2. **Environment secrets:** `DEPLOY_HOST`, `DEPLOY_USER` (`deploy`), `DEPLOY_SSH_KEY` (private key matching the bootstrap key) and `DEPLOY_KNOWN_HOSTS`.
 3. **Environment variables:** `APP_URL` (e.g. `https://staging.example.com`); optionally `DEPLOY_PATH` (default `/opt/seopulse`) and `DEPLOY_SSH_PORT` (default 22).
-4. **Frontend Sentry (optional):** repository variables `VITE_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT` and secret `SENTRY_AUTH_TOKEN`.
+4. **Frontend Sentry (optional):** repository variables `VITE_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT` and secret `SENTRY_AUTH_TOKEN`. Set `VITE_CONTACT_EMAIL` too, so the legal pages show your support address, and `VITE_GOOGLE_CLIENT_ID` / `VITE_TURNSTILE_SITE_KEY` to turn on Google sign-in and the CAPTCHA.
 5. **Security:** enable Dependabot alerts and code scanning under *Settings → Code security*.
 
 </details>
@@ -554,6 +575,12 @@ The schema is owned by Flyway (`seopulse-backend/src/main/resources/db/migration
 | V8 | Audit schedules, alert rules and alert outbox, ShedLock, plan features (schedules, webhooks, white-label, retention) |
 | V9 | Rule catalog with categories and help links, issue fingerprints, page signals, weighted category scores, audit aggregates |
 | V10 | PDF reports, share links, organization branding |
+| V11 | Free plan allows 3 websites |
+| V12 | Newsletter subscribers with double opt-in |
+| V13 | Dismissible onboarding checklist |
+| V14 | Google sign-in subject on users |
+| V15 | Core Web Vitals per audit |
+| V16 | Razorpay subscriptions and billing provider |
 
 Rules for every migration:
 

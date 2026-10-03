@@ -105,6 +105,8 @@ seopulse:
     # Off for now; set true to block audits until the email is verified.
     require-email-verification: ${SEOPULSE_AUTH_REQUIRE_EMAIL_VERIFICATION:false}
     app-base-url: ${SEOPULSE_APP_BASE_URL:http://localhost:5173}
+    # Blank disables "Continue with Google". Same value as VITE_GOOGLE_CLIENT_ID.
+    google-client-id: ${GOOGLE_CLIENT_ID:}
     max-failed-logins: 10
     lockout-duration: 15m
     password-min-length: 10
@@ -124,8 +126,29 @@ seopulse:
     agency-yearly-price-id: ${STRIPE_PRICE_AGENCY_YEARLY:}
     success-url: ${STRIPE_SUCCESS_URL:http://localhost:5173/settings?billing=success}
     cancel-url: ${STRIPE_CANCEL_URL:http://localhost:5173/pricing}
+    # INR subscriptions. Off until the key ID and secret are set. Plans are created in the Razorpay dashboard.
+    razorpay:
+      key-id: ${RAZORPAY_KEY_ID:}
+      key-secret: ${RAZORPAY_KEY_SECRET:}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+      pro-monthly-plan-id: ${RAZORPAY_PLAN_PRO_MONTHLY:}
+      pro-yearly-plan-id: ${RAZORPAY_PLAN_PRO_YEARLY:}
+      agency-monthly-plan-id: ${RAZORPAY_PLAN_AGENCY_MONTHLY:}
+      agency-yearly-plan-id: ${RAZORPAY_PLAN_AGENCY_YEARLY:}
   rate-limit:
     enabled: ${SEOPULSE_RATE_LIMIT_ENABLED:true}
+  abuse:
+    block-disposable-emails: ${SEOPULSE_BLOCK_DISPOSABLE_EMAILS:true}
+    # Cloudflare Turnstile; CAPTCHA is off while blank. The site key goes in VITE_TURNSTILE_SITE_KEY.
+    turnstile-secret-key: ${TURNSTILE_SECRET_KEY:}
+  admin:
+    # Comma-separated emails that get the platform admin dashboard (/admin).
+    emails: ${SEOPULSE_ADMIN_EMAILS:}
+  web-vitals:
+    # Core Web Vitals for each audited homepage via Google PageSpeed Insights.
+    enabled: ${SEOPULSE_WEB_VITALS_ENABLED:true}
+    # Optional but recommended: the anonymous quota is tiny. Enable "PageSpeed Insights API" in Google Cloud.
+    api-key: ${PAGESPEED_API_KEY:}
   reports:
     # Shared by the api and worker containers unless an S3 bucket is set.
     storage-dir: ${SEOPULSE_REPORTS_DIR:./data/reports}

@@ -1,14 +1,17 @@
 package com.seopulse.auth.controller;
 
+import com.seopulse.abuse.CaptchaVerifier;
 import com.seopulse.auth.config.AuthProperties;
 import com.seopulse.auth.dto.AuthResponse;
 import com.seopulse.auth.dto.ForgotPasswordRequest;
+import com.seopulse.auth.dto.GoogleSignInRequest;
 import com.seopulse.auth.dto.LoginRequest;
 import com.seopulse.auth.dto.RegisterRequest;
 import com.seopulse.auth.dto.ResetPasswordRequest;
 import com.seopulse.auth.dto.TokenRequest;
 import com.seopulse.auth.service.AuthService;
 import com.seopulse.auth.service.EmailVerificationService;
+import com.seopulse.auth.service.GoogleIdTokenVerifier;
 import com.seopulse.auth.service.PasswordResetService;
 import com.seopulse.auth.service.SecureTokens;
 import com.seopulse.common.exception.InvalidCredentialsException;
@@ -49,9 +52,15 @@ public class AuthController {
     private final RateLimiter rateLimiter;
     private final RateLimitProperties rateLimitProperties;
     private final AuthProperties authProperties;
+    private final CaptchaVerifier captchaVerifier;
+    private final GoogleIdTokenVerifier googleIdTokenVerifier;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<AuthResponse> register(
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        captchaVerifier.verify(request.captchaToken(), ClientIp.of(servletRequest));
         return withSession(HttpStatus.CREATED, authService.register(request));
     }
 
@@ -65,6 +74,16 @@ public class AuthController {
         rateLimiter.enforce("login-account", ip + ":" + emailKey(request.email()), rateLimitProperties.getLogin());
 
         return withSession(HttpStatus.OK, authService.login(request));
+    }
+
+    @PostMapping("/google")
+    public ResponseEntity<AuthResponse> google(
+            @Valid @RequestBody GoogleSignInRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        rateLimiter.enforce("login-ip", ClientIp.of(servletRequest), rateLimitProperties.getLogin());
+        GoogleIdTokenVerifier.GoogleIdentity identity = googleIdTokenVerifier.verify(request.credential());
+        return withSession(HttpStatus.OK, authService.loginWithGoogle(identity));
     }
 
     @PostMapping("/refresh")

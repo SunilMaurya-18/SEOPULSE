@@ -35,6 +35,8 @@ public interface WebsiteRepository extends JpaRepository<Website, Long> {
 
     java.util.List<Website> findByProjectOrganizationIdOrderByCreatedAtAsc(Long organizationId);
 
+    List<Website> findByProjectIdOrderByIdAsc(Long projectId);
+
     @Query("""
             SELECT w.id
             FROM Website w

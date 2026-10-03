@@ -1,6 +1,6 @@
 import { Download, Gauge, ScanSearch } from 'lucide-react'
-import { Link } from 'react-router-dom'
 
+import { QuickCheck } from '@/features/landing/components/QuickCheck'
 import { smoothScrollTo } from '@/features/landing/useInView'
 import { PredictiveArcCanvas, TextAnimationCollection } from '@designcodeio/threeui'
 import '@designcodeio/threeui/style.css'
@@ -72,29 +72,24 @@ export function HeroSection() {
           })}
         </ul>
 
-        <div className="hero-rise hero-rise-6 mt-7 flex flex-col gap-3 sm:flex-row">
+        <div className="hero-rise hero-rise-6 mt-7">
+          <QuickCheck />
           <button
             type="button"
             onClick={() => smoothScrollTo('solutions')}
-            className="w-full rounded-md bg-accent px-5 py-3 font-mono text-sm text-on-accent transition hover:-translate-y-0.5 hover:brightness-110 sm:w-auto"
+            className="mt-4 font-mono text-sm text-[#f2f5ea]/80 underline underline-offset-4 transition hover:text-accent"
           >
-            Learn More
+            Learn more about SEOPulse
           </button>
-          <Link
-            to="/register"
-            className="w-full rounded-md border border-[#f2f5ea]/70 px-5 py-3 text-center font-mono text-sm text-[#f2f5ea] transition hover:-translate-y-0.5 hover:border-accent hover:text-accent sm:w-auto"
-          >
-            Analyze My Site
-          </Link>
         </div>
 
-        <dl className="hero-rise hero-rise-7 mt-8 flex flex-wrap gap-x-8 gap-y-2">
+        <ul className="hero-rise hero-rise-7 mt-8 flex flex-wrap gap-x-8 gap-y-2">
           {stats.map((stat) => (
-            <div key={stat}>
-              <dt className="font-mono text-xs tracking-wide text-[#8b93a1]">{stat}</dt>
-            </div>
+            <li key={stat} className="font-mono text-xs tracking-wide text-[#8b93a1]">
+              {stat}
+            </li>
           ))}
-        </dl>
+        </ul>
       </div>
     </section>
   )

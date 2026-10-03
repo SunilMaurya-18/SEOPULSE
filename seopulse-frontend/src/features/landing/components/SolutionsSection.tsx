@@ -56,7 +56,7 @@ export function SolutionsSection() {
         <div ref={ref} className="lg:sticky lg:top-28">
           <h2
             className={cn(
-              'font-mono text-4xl leading-tight font-normal tracking-wide text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
+              'font-mono text-4xl leading-[1.08] font-semibold tracking-tight text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
               shown ? 'translate-y-0 opacity-100 blur-none' : 'translate-y-4 opacity-50 blur-md',
             )}
           >

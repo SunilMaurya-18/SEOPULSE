@@ -16,7 +16,7 @@ export function LandingPage() {
   }, [])
 
   return (
-    <div className="dark min-h-screen bg-[#05070a] font-mono text-base text-[#f2f5ea] antialiased">
+    <div className="marketing dark min-h-screen bg-[#05070a] text-base text-[#f2f5ea] antialiased">
       <MarketingHeader />
       <main>
         <HeroSection />

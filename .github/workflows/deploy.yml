@@ -75,6 +75,9 @@ jobs:
           build-args: |
             VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
             VITE_RELEASE=${{ github.sha }}
+            VITE_CONTACT_EMAIL=${{ vars.VITE_CONTACT_EMAIL }}
+            VITE_TURNSTILE_SITE_KEY=${{ vars.VITE_TURNSTILE_SITE_KEY }}
+            VITE_GOOGLE_CLIENT_ID=${{ vars.VITE_GOOGLE_CLIENT_ID }}
             SENTRY_ORG=${{ vars.SENTRY_ORG }}
             SENTRY_PROJECT=${{ vars.SENTRY_PROJECT }}
           secrets: |

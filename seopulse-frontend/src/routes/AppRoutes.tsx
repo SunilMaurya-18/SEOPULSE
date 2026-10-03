@@ -15,6 +15,9 @@ function lazyPage<K extends string>(
 
 const LandingPage = lazyPage(() => import('@/pages/LandingPage'), 'LandingPage')
 const TermsPage = lazyPage(() => import('@/pages/TermsPage'), 'TermsPage')
+const PrivacyPage = lazyPage(() => import('@/pages/PrivacyPage'), 'PrivacyPage')
+const RefundPolicyPage = lazyPage(() => import('@/pages/RefundPolicyPage'), 'RefundPolicyPage')
+const NewsletterPage = lazyPage(() => import('@/pages/NewsletterPage'), 'NewsletterPage')
 const BotPage = lazyPage(() => import('@/pages/BotPage'), 'BotPage')
 const PricingPage = lazyPage(() => import('@/pages/PricingPage'), 'PricingPage')
 const LoginPage = lazyPage(() => import('@/pages/LoginPage'), 'LoginPage')
@@ -38,6 +41,7 @@ const PagesInventoryPage = lazyPage(
 )
 const SettingsPage = lazyPage(() => import('@/pages/SettingsPage'), 'SettingsPage')
 const SharedReportPage = lazyPage(() => import('@/pages/SharedReportPage'), 'SharedReportPage')
+const AdminPage = lazyPage(() => import('@/pages/AdminPage'), 'AdminPage')
 
 function FullPageFallback() {
   return (
@@ -56,6 +60,10 @@ export function AppRoutes() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/refund-policy" element={<RefundPolicyPage />} />
+          <Route path="/newsletter/confirm" element={<NewsletterPage />} />
+          <Route path="/newsletter/unsubscribe" element={<NewsletterPage />} />
           <Route path="/bot" element={<BotPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -76,6 +84,7 @@ export function AppRoutes() {
               <Route path="/issues" element={<IssuesPage />} />
               <Route path="/pages" element={<PagesInventoryPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="/analyzer" element={<Navigate to="/pages" replace />} />
             </Route>
           </Route>

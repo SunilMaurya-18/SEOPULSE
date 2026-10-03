@@ -18,6 +18,9 @@ public interface ReportShareRepository extends JpaRepository<ReportShare, Long> 
 
     Optional<ReportShare> findByIdAndAuditId(Long id, Long auditId);
 
+    @Query("SELECT COUNT(s) > 0 FROM ReportShare s, Audit a WHERE a.id = s.auditId AND a.website.project.id = :projectId")
+    boolean existsForProject(@Param("projectId") Long projectId);
+
     @Transactional
     @Modifying
     @Query("UPDATE ReportShare s SET s.viewCount = s.viewCount + 1, s.lastViewedAt = :now WHERE s.id = :id")

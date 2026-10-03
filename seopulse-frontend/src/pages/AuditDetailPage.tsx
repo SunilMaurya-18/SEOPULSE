@@ -24,12 +24,13 @@ import {
   useCancelAudit,
   useLiveAudit,
 } from '@/api/queries/audits'
-import { useAuditComparison, useWebsiteTrend } from '@/api/queries/insights'
+import { useAuditComparison, useAuditWebVitals, useWebsiteTrend } from '@/api/queries/insights'
 import { EmailReportDialog } from '@/features/dashboard/EmailReportDialog'
 import { CategoryScores } from '@/features/insights/CategoryScores'
 import { ComparisonPanel } from '@/features/insights/ComparisonPanel'
 import { ReportActions } from '@/features/insights/ReportActions'
 import { TrendChart } from '@/features/insights/TrendChart'
+import { WebVitalsPanel } from '@/features/insights/WebVitalsPanel'
 import { formatDateTime, formatDuration, hostOf } from '@/lib/format'
 import { useToast } from '@/lib/toast'
 import { useWorkspace } from '@/lib/workspace'
@@ -64,6 +65,7 @@ export function AuditDetailPage() {
   const completed = audit?.status === 'COMPLETED'
   const comparisonQuery = useAuditComparison(projectId, auditId, completed)
   const trendQuery = useWebsiteTrend(projectId, completed ? audit?.websiteId : null)
+  const webVitalsQuery = useAuditWebVitals(projectId, auditId, completed)
 
   const cancelAudit = useCancelAudit(projectId)
 
@@ -254,6 +256,8 @@ export function AuditDetailPage() {
       {completed && comparisonQuery.data && <ComparisonPanel comparison={comparisonQuery.data} />}
 
       {completed && <CategoryScores scores={summary?.categoryScores} />}
+
+      {completed && <WebVitalsPanel vitals={webVitalsQuery.data} />}
 
       {completed && trendQuery.data && trendQuery.data.length > 1 && (
         <section className="widget p-5 sm:p-6">

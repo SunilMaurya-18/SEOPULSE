@@ -81,6 +81,16 @@ class AuthLifecycleIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void registerRefusesThrowawayEmailAddresses() throws Exception {
+        mvc.perform(post("/api/v1/auth/register")
+                        .with(fromIp(randomIp()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody("someone-" + System.nanoTime() + "@mailinator.com", TEST_PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail", containsString("permanent email")));
+    }
+
+    @Test
     void refreshRotatesTokenAndDetectsReuse() throws Exception {
 
         TestUser user = registerUser("rotate");

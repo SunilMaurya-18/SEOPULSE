@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react
 
 import { getErrorMessage } from '@/api/errors'
 import { AuthShell, PendingWebsiteNotice } from '@/components/auth/AuthShell'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -14,7 +15,7 @@ import {
 import { useToast } from '@/lib/toast'
 
 export function LoginPage() {
-  const { login, isAuthenticated } = useAuth()
+  const { login, loginWithGoogle, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const location = useLocation()
@@ -63,6 +64,23 @@ export function LoginPage() {
     }
   }
 
+  async function handleGoogle(credential: string) {
+    setError(null)
+    setLoading(true)
+    try {
+      if (pendingFromQuery) {
+        setPendingWebsiteUrl(pendingFromQuery)
+      }
+      await loginWithGoogle(credential)
+      pushToast({ tone: 'success', title: 'Signed in', description: 'Welcome to SEOPulse.' })
+      navigate(pendingFromQuery ? '/dashboard' : returnTo, { replace: true })
+    } catch (err) {
+      setError(getErrorMessage(err, 'Google sign-in failed. Please try again.'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <AuthShell
       title="Welcome back"
@@ -92,6 +110,8 @@ export function LoginPage() {
             {error}
           </Alert>
         )}
+
+        <GoogleSignInButton text="signin_with" onCredential={(credential) => void handleGoogle(credential)} />
 
         <Input
           id="email"
