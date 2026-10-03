@@ -244,7 +244,7 @@ services:
   # Optional: docker compose --profile monitoring up -d
   # Both UIs bind to 127.0.0.1 only; reach them through an SSH tunnel.
   prometheus:
-    image: prom/prometheus:v3.7.3
+    image: prom/prometheus:v3.15.0
     profiles: [monitoring]
     restart: unless-stopped
     command:
