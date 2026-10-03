@@ -1,0 +1,173 @@
+{
+  "shots": [
+    "audit-tall",
+    "card-web-vitals",
+    "card-trend",
+    "card-changes",
+    "settings-free-tall",
+    "card-plan-free",
+    "settings-pro-tall",
+    "card-alerts",
+    "landing-hero",
+    "landing-typed",
+    "quick-check-card",
+    "audit-live",
+    "issues-tall",
+    "pricing-inr",
+    "pricing-usd"
+  ],
+  "boxes": {
+    "landing-hero": {
+      "Check my site free": {
+        "x": 623,
+        "y": 719,
+        "w": 157,
+        "h": 48
+      },
+      "Use data to get a 360-degree view of your site.": {
+        "x": 60,
+        "y": 446,
+        "w": 1320,
+        "h": 32
+      }
+    },
+    "landing-input": {
+      "x": 60,
+      "y": 718.96875,
+      "width": 551.484375,
+      "height": 48
+    },
+    "audit-live": {
+      "146": {
+        "x": 120,
+        "y": 947,
+        "w": 258,
+        "h": 30
+      },
+      "Queued": {
+        "x": 254,
+        "y": 564,
+        "w": 45,
+        "h": 16
+      },
+      "Crawling": {
+        "x": 488,
+        "y": 564,
+        "w": 50,
+        "h": 16
+      },
+      "Analyzing": {
+        "x": 722,
+        "y": 564,
+        "w": 56,
+        "h": 16
+      },
+      "Ready": {
+        "x": 956,
+        "y": 564,
+        "w": 36,
+        "h": 16
+      },
+      "Pages": {
+        "x": 807,
+        "y": 30,
+        "w": 34,
+        "h": 12
+      },
+      "32%": {
+        "x": 124,
+        "y": 503,
+        "w": 80,
+        "h": 80
+      },
+      "Live crawl": {
+        "x": 244,
+        "y": 481,
+        "w": 80,
+        "h": 23
+      }
+    },
+    "audit-tall": {
+      "86": {
+        "x": 190,
+        "y": 249,
+        "w": 49,
+        "h": 39
+      },
+      "Issues changed since last audit": {
+        "x": 124,
+        "y": 690,
+        "w": 248,
+        "h": 23
+      },
+      "Fixed": null,
+      "New": null,
+      "Still open": null,
+      "+7 score": null,
+      "Score by category": {
+        "x": 124,
+        "y": 1285,
+        "w": 1192,
+        "h": 23
+      },
+      "Core Web Vitals": {
+        "x": 124,
+        "y": 1553,
+        "w": 337,
+        "h": 23
+      },
+      "Score trend": {
+        "x": 124,
+        "y": 2087,
+        "w": 1192,
+        "h": 23
+      }
+    },
+    "issues-tall": {
+      "Link to an importer page returns 404": {
+        "x": 180,
+        "y": 471,
+        "w": 1140,
+        "h": 23
+      },
+      "3 redirects before the final page": {
+        "x": 180,
+        "y": 661,
+        "w": 1140,
+        "h": 23
+      },
+      "Returned 410 Gone": {
+        "x": 180,
+        "y": 851,
+        "w": 1140,
+        "h": 23
+      },
+      "4 images have no alt text": {
+        "x": 180,
+        "y": 1041,
+        "w": 1140,
+        "h": 23
+      }
+    },
+    "pricing-inr": {
+      "Pro": {
+        "x": 578,
+        "y": 445,
+        "w": 283,
+        "h": 28
+      },
+      "Free": {
+        "x": 229,
+        "y": 445,
+        "w": 283,
+        "h": 28
+      },
+      "Agency": {
+        "x": 928,
+        "y": 445,
+        "w": 283,
+        "h": 28
+      }
+    }
+  }
+}

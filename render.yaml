@@ -1,0 +1,84 @@
+# Render Blueprint for a free, domain-less deployment: this API on Render, the
+# frontend on Vercel (seopulse-frontend/vercel.json proxies /api here so the
+# SameSite=Strict refresh cookie stays first-party), Postgres on Neon and Redis
+# on Redis Cloud. Values marked `sync: false` are asked for when the Blueprint
+# is created. The full production stack lives in deploy/.
+services:
+  - type: web
+    name: seopulse-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./seopulse-backend/Dockerfile
+    dockerContext: ./seopulse-backend
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - seopulse-backend/**
+    envVars:
+      # One free instance runs both the API and the audit worker.
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod,worker
+      - key: PORT
+        value: "8082"
+      - key: SERVER_PORT
+        value: "8082"
+
+      # Neon, e.g. jdbc:postgresql://ep-xxxx.neon.tech/neondb?sslmode=require
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+      # Redis Cloud. For Upstash or any TLS-only Redis, also add
+      # SPRING_DATA_REDIS_SSL_ENABLED=true.
+      - key: REDIS_HOST
+        sync: false
+      - key: REDIS_PORT
+        sync: false
+      - key: REDIS_PASSWORD
+        sync: false
+
+      - key: JWT_SECRET
+        generateValue: true
+
+      # The Vercel address, e.g. https://seopulse.vercel.app (https:// is required in prod).
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SEOPULSE_APP_BASE_URL
+        sync: false
+      - key: SEOPULSE_BOT_INFO_URL
+        sync: false
+
+      # Fit the free instance's 512 MB. An explicit -Xmx wins over the image's
+      # -XX:MaxRAMPercentage=75, which would leave too little non-heap memory.
+      # Metaspace settles around 135 MB after startup.
+      - key: JAVA_TOOL_OPTIONS
+        value: -Xmx200m -Xss512k -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:ReservedCodeCacheSize=48m -XX:MaxMetaspaceSize=192m -XX:MaxDirectMemorySize=32m
+      - key: MALLOC_ARENA_MAX
+        value: "2"
+      - key: SERVER_TOMCAT_THREADS_MAX
+        value: "32"
+      - key: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+        value: "5"
+      - key: SEOPULSE_WORKER_CONCURRENCY
+        value: "1"
+      - key: SEOPULSE_CRAWLER_MAXPAGES
+        value: "200"
+
+      - key: SEOPULSE_ADMIN_EMAILS
+        sync: false
+
+      # e.g. Gmail: smtp.gmail.com, 587, your address and a Google App Password.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

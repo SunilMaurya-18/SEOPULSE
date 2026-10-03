@@ -58,10 +58,11 @@ export async function openRazorpayCheckout(session: RazorpayCheckout, descriptio
   })
 }
 
-/** Visitors in India default to paying in rupees. */
+/** Visitors in India default to paying in rupees. Chrome still reports the legacy Asia/Calcutta name. */
 export function prefersInr() {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone === 'Asia/Kolkata'
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return zone === 'Asia/Kolkata' || zone === 'Asia/Calcutta'
   } catch {
     return false
   }
