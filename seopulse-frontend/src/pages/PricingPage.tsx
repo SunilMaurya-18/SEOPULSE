@@ -36,16 +36,16 @@ export function PricingPage() {
   }, [])
 
   return (
-    <div className="marketing dark min-h-dvh bg-black text-[#f2f5ea]">
+    <div className="marketing dark min-h-dvh bg-black text-main">
       <MarketingHeader />
       <main className="mx-auto max-w-6xl px-5 pt-36 pb-24 md:px-[60px]">
         <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">Pricing</p>
         <h1 className="mt-3 max-w-xl font-mono text-4xl leading-[1.08] font-semibold tracking-tight sm:text-6xl">Plans that stay out of the way.</h1>
         <div className="mt-8 inline-flex rounded-full border border-white/15 p-1 font-mono text-sm">
-          <button type="button" className={!yearly ? 'rounded-full bg-accent px-4 py-2 text-on-accent' : 'px-4 py-2 text-[#8b93a1]'} onClick={() => setYearly(false)}>
+          <button type="button" className={!yearly ? 'rounded-full bg-accent px-4 py-2 text-on-accent' : 'px-4 py-2 text-muted'} onClick={() => setYearly(false)}>
             Monthly
           </button>
-          <button type="button" className={yearly ? 'rounded-full bg-accent px-4 py-2 text-on-accent' : 'px-4 py-2 text-[#8b93a1]'} onClick={() => setYearly(true)}>
+          <button type="button" className={yearly ? 'rounded-full bg-accent px-4 py-2 text-on-accent' : 'px-4 py-2 text-muted'} onClick={() => setYearly(true)}>
             Yearly
           </button>
         </div>
@@ -54,14 +54,14 @@ export function PricingPage() {
             const price = yearly ? plan.yearly : plan.monthly
             const amount = inr ? price.inr : price.usd
             return (
-              <article key={plan.code} className="rounded-2xl border border-white/10 bg-[#0c1016] p-6">
+              <article key={plan.code} className="rounded-2xl border border-white/10 bg-surface p-6">
                 <h2 className="font-mono text-xl">{plan.name}</h2>
                 <p className="mt-4 font-mono text-4xl">
                   {inr ? '₹' : '$'}
                   {amount.toLocaleString()}
-                  <span className="text-base text-[#8b93a1]">{plan.code === 'FREE' ? '' : yearly ? '/yr' : '/mo'}</span>
+                  <span className="text-base text-muted">{plan.code === 'FREE' ? '' : yearly ? '/yr' : '/mo'}</span>
                 </p>
-                <ul className="mt-6 space-y-2 text-sm text-[#c5c9c2]">
+                <ul className="mt-6 space-y-2 text-sm text-muted">
                   {plan.points.map((point) => (
                     <li key={point}>{point}</li>
                   ))}

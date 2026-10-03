@@ -24,6 +24,9 @@ export function getErrorMessage(err: unknown, fallback: string): string {
     return 'Unable to reach the server. Check your connection and try again.'
   }
   const problem = getProblem(err)
+  if (axios.isAxiosError(err) && !problem) {
+    return 'The server is unavailable right now. Please try again in a few minutes.'
+  }
   const firstFieldError = problem?.errors ? Object.values(problem.errors)[0] : undefined
   return firstFieldError || problem?.detail || fallback
 }

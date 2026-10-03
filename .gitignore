@@ -19,6 +19,7 @@ target/
 dist/
 dist-ssr/
 node_modules/
+brag-output/
 
 # Logs
 *.log

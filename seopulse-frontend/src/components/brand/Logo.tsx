@@ -16,8 +16,8 @@ export function Logo({
   if (appearance === 'app') {
     return (
       <Link to={to} onClick={onClick} className={cn('inline-flex items-center gap-2.5', className)}>
-        <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-gradient-to-b from-[#ff6b5f] to-[#e8413b] shadow-[inset_0_1px_0_rgb(255_255_255/0.3),0_4px_12px_-4px_rgb(245_80_74/0.6)]">
-          <SlidersHorizontal className="h-4 w-4 text-white" strokeWidth={2.5} aria-hidden />
+        <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-accent shadow-[inset_0_1px_0_rgb(255_255_255/0.3)]">
+          <SlidersHorizontal className="h-4 w-4 text-on-accent" strokeWidth={2.5} aria-hidden />
         </span>
         <span className="font-display text-[17px] font-semibold tracking-[-0.02em] text-main">SEOPulse</span>
       </Link>

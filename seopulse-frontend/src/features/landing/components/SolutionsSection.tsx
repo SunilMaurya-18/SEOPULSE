@@ -50,13 +50,13 @@ export function SolutionsSection() {
   return (
     <section
       id="solutions"
-      className="scroll-mt-24 bg-[linear-gradient(180deg,#243640_0%,#05070a_26%)] px-5 py-24 md:px-[60px] md:py-32"
+      className="scroll-mt-24 bg-canvas px-5 py-24 md:px-[60px] md:py-32"
     >
       <div className="mx-auto grid max-w-6xl items-start gap-14 lg:grid-cols-2 lg:gap-20">
         <div ref={ref} className="lg:sticky lg:top-28">
           <h2
             className={cn(
-              'font-mono text-4xl leading-[1.08] font-semibold tracking-tight text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
+              'font-display text-4xl leading-[1.08] font-bold tracking-tight text-main text-glow transition duration-700 sm:text-5xl lg:text-6xl',
               shown ? 'translate-y-0 opacity-100 blur-none' : 'translate-y-4 opacity-50 blur-md',
             )}
           >
@@ -64,7 +64,7 @@ export function SolutionsSection() {
           </h2>
           <div className="mt-8 flex gap-4">
             <span className="w-px shrink-0 bg-accent" aria-hidden />
-            <p className="font-mono text-sm leading-relaxed text-[#f2f5ea] sm:text-base">
+            <p className="font-mono text-sm leading-relaxed text-main sm:text-base">
               SEOPulse crawls the public pages you point it at, scores what it finds,
               and keeps the crawl, the issues, and the report in one place.
             </p>
@@ -78,7 +78,7 @@ export function SolutionsSection() {
               <div key={card.title} className={cn(card.drift, card.offset)}>
                 <article
                   className={cn(
-                    'rounded-lg bg-[#4a4d47] p-5 text-[#f2f5ea] transition duration-300 hover:rotate-0 max-sm:rotate-0',
+                    'rounded-lg border border-default bg-surface-elevated p-5 text-main transition duration-300 hover:rotate-0 max-sm:rotate-0',
                     card.rotate,
                   )}
                 >
@@ -86,7 +86,7 @@ export function SolutionsSection() {
                     <Icon className="h-5 w-5" strokeWidth={1.5} aria-hidden />
                   </div>
                   <h3 className="mt-5 font-mono text-base font-medium">{card.title}</h3>
-                  <p className="mt-2 font-mono text-sm leading-relaxed text-[#f2f5ea]/85">
+                  <p className="mt-2 font-mono text-sm leading-relaxed text-main/85">
                     {card.body}
                   </p>
                 </article>

@@ -30,19 +30,19 @@ export function VisionSection() {
     <section
       id="vision"
       ref={ref}
-      className="scroll-mt-24 bg-[#05070a] px-5 py-24 md:px-[60px] md:py-32"
+      className="scroll-mt-24 bg-canvas px-5 py-24 md:px-[60px] md:py-32"
     >
       <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-2 lg:gap-20">
         <h2
           className={cn(
-            'font-mono text-4xl leading-[1.08] font-semibold tracking-tight text-[#f2f5ea] transition duration-700 sm:text-5xl lg:text-6xl',
+            'font-display text-4xl leading-[1.08] font-bold tracking-tight text-main text-glow transition duration-700 sm:text-5xl lg:text-6xl',
             shown ? 'translate-y-0 opacity-100 blur-none' : 'translate-y-3 opacity-40 blur-md',
           )}
         >
           Unprecedented velocity. Impeccable reliability.
         </h2>
         <div>
-          <p className="font-mono text-sm leading-relaxed text-[#f2f5ea] sm:text-base">
+          <p className="font-mono text-sm leading-relaxed text-main sm:text-base">
             <span className="caret-blink mr-2 inline-block h-4 w-2 translate-y-0.5 bg-accent align-middle" aria-hidden />
             {lines.slice(0, visibleLines).join(' ')}
           </p>

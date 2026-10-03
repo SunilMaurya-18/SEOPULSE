@@ -771,7 +771,7 @@ function PlanCard({ billing }: { billing: BillingSnapshot | null }) {
   const isFree = !billing || billing.planCode === 'FREE'
   return (
     <div className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,#2c2c2e_0%,#1c1c1e_45%,#3a1d1b_100%)] p-6 text-white shadow-[0_24px_48px_-24px_rgb(0_0_0/0.6),inset_0_1px_0_rgb(255_255_255/0.08)]">
-      <div className="pointer-events-none absolute -top-20 -right-16 h-56 w-56 rounded-full bg-[#ff5a52]/35 blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 -right-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,transparent_35%,rgb(255_255_255/0.07)_50%,transparent_65%)]" />
       <div className="relative flex items-start justify-between gap-3">
         <div>
@@ -816,7 +816,7 @@ function PlanMeter({ label, used, limit }: { label: string; used: number; limit:
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-white/12">
         <div
-          className={cn('h-full rounded-full', pct >= 90 ? 'bg-[#ff453a]' : 'bg-gradient-to-r from-[#ff8a65] to-[#ff5a52]')}
+          className={cn('h-full rounded-full', pct >= 90 ? 'bg-[#ff453a]' : 'bg-accent')}
           style={{ width: `${Math.max(pct, 3)}%` }}
         />
       </div>

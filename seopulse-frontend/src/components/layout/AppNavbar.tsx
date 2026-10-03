@@ -63,14 +63,14 @@ const BRAND_MARK = (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <defs>
       <linearGradient id="app-dock-mark" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stopColor="#ff6b5f" />
-        <stop offset="1" stopColor="#e8413b" />
+        <stop offset="0" stopColor="#ffffff" />
+        <stop offset="1" stopColor="#c4c4c8" />
       </linearGradient>
     </defs>
     <rect width="24" height="24" rx="4.5" fill="url(#app-dock-mark)" />
-    <path d="M7 9h10M7 15h10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
-    <circle cx="14" cy="9" r="2" fill="#e8413b" stroke="#fff" strokeWidth="1.6" />
-    <circle cx="10" cy="15" r="2" fill="#e8413b" stroke="#fff" strokeWidth="1.6" />
+    <path d="M7 9h10M7 15h10" stroke="#000" strokeWidth="1.6" strokeLinecap="round" />
+    <circle cx="14" cy="9" r="2" fill="#ffffff" stroke="#000" strokeWidth="1.6" />
+    <circle cx="10" cy="15" r="2" fill="#ffffff" stroke="#000" strokeWidth="1.6" />
   </svg>
 )
 

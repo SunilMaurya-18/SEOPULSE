@@ -43,7 +43,7 @@ export function NewsletterPage() {
   const text = copy[action]
 
   return (
-    <div className="marketing dark min-h-dvh bg-black text-[#f2f5ea]">
+    <div className="marketing dark min-h-dvh bg-black text-main">
       <MarketingHeader />
       <main className="mx-auto flex min-h-dvh max-w-xl flex-col justify-center px-5 py-32 md:px-[60px]">
         <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">Mailing list</p>
@@ -51,7 +51,7 @@ export function NewsletterPage() {
           {status === 'working' ? text.working : status === 'done' ? text.done : 'Something went wrong'}
         </h1>
         {status !== 'working' && (
-          <p className="mt-4 font-mono text-sm leading-relaxed text-[#c9cfd8]">
+          <p className="mt-4 font-mono text-sm leading-relaxed text-muted">
             {status === 'done' ? text.detail : error}
           </p>
         )}

@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./originkit-section-themes.css";
+@import "./originkit-section-theme.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

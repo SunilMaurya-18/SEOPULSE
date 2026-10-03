@@ -54,7 +54,7 @@ export function MarketingHeader() {
         'fixed top-0 right-0 left-0 z-50',
         overHero
           ? 'bg-gradient-to-b from-black/80 via-black/35 to-transparent'
-          : 'border-b border-white/10 bg-[#05070a]/95 backdrop-blur-md',
+          : 'border-b border-white/10 bg-canvas/95 backdrop-blur-md',
       )}
     >
       <div className="flex items-center justify-between px-5 py-4 md:px-[60px]">
@@ -64,7 +64,7 @@ export function MarketingHeader() {
           <nav
             aria-label="Primary"
             className={cn(
-              'hidden items-center rounded-full bg-[#2c2f2b] py-1 pr-1 pl-5 transition-opacity duration-300 md:flex',
+              'hidden items-center rounded-full border border-white/10 bg-surface-elevated/90 backdrop-blur-md py-1 pr-1 pl-5 transition-opacity duration-300 md:flex',
               overHero && 'pointer-events-none opacity-0',
             )}
           >
@@ -73,12 +73,12 @@ export function MarketingHeader() {
                 key={link.id}
                 type="button"
                 onClick={() => go(link.id)}
-                className="px-3 py-2 font-mono text-sm text-[#f2f5ea] hover:text-white"
+                className="px-3 py-2 font-mono text-sm text-main hover:text-white"
               >
                 {link.label}
               </button>
             ))}
-            <Link to="/pricing" className="px-3 py-2 font-mono text-sm text-[#f2f5ea] hover:text-white">
+            <Link to="/pricing" className="px-3 py-2 font-mono text-sm text-main hover:text-white">
               Pricing
             </Link>
             <Link
@@ -99,7 +99,7 @@ export function MarketingHeader() {
 
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-[#f2f5ea] md:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-main md:hidden"
             aria-expanded={open}
             aria-label={open ? 'Close menu' : 'Open menu'}
             onClick={() => setOpen((value) => !value)}
@@ -112,14 +112,14 @@ export function MarketingHeader() {
       {open && (
         <nav
           aria-label="Mobile"
-          className="mx-5 mb-3 flex flex-col gap-1 rounded-2xl bg-[#2c2f2b] p-3 md:hidden"
+          className="mx-5 mb-3 flex flex-col gap-1 rounded-2xl border border-white/10 bg-surface-elevated/90 backdrop-blur-md p-3 md:hidden"
         >
           {links.map((link) => (
             <button
               key={link.id}
               type="button"
               onClick={() => go(link.id)}
-              className="rounded-md px-3 py-3 text-left font-mono text-sm text-[#f2f5ea]"
+              className="rounded-md px-3 py-3 text-left font-mono text-sm text-main"
             >
               {link.label}
             </button>
@@ -127,7 +127,7 @@ export function MarketingHeader() {
           <Link
             to="/pricing"
             onClick={() => setOpen(false)}
-            className="rounded-md px-3 py-3 text-left font-mono text-sm text-[#f2f5ea]"
+            className="rounded-md px-3 py-3 text-left font-mono text-sm text-main"
           >
             Pricing
           </Link>

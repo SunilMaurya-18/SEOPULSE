@@ -30,9 +30,8 @@ export function AuthShowcase() {
       aria-hidden="true"
       className="relative m-3 hidden w-[52%] max-w-[760px] shrink-0 flex-col overflow-hidden rounded-[32px] bg-surface-low p-10 card-shadow lg:flex [@media(max-height:880px)]:p-8"
     >
-      <div className="pointer-events-none absolute -top-40 -left-24 h-[420px] w-[420px] rounded-full bg-[#ff5a52]/25 blur-[110px]" />
-      <div className="pointer-events-none absolute -right-24 bottom-10 h-[360px] w-[360px] rounded-full bg-[#0a84ff]/20 blur-[110px]" />
-      <div className="pointer-events-none absolute top-1/3 right-1/4 h-[240px] w-[240px] rounded-full bg-[#9f5cf0]/15 blur-[100px]" />
+      <div className="pointer-events-none absolute -top-40 -left-24 h-[420px] w-[420px] rounded-full bg-white/10 blur-[110px]" />
+      <div className="pointer-events-none absolute -right-24 bottom-10 h-[360px] w-[360px] rounded-full bg-white/5 blur-[110px]" />
 
       <div className="relative">
         <Logo to="/" appearance="app" />
@@ -40,9 +39,9 @@ export function AuthShowcase() {
 
       <div className="relative mt-8 max-w-[30rem]">
         <p className="text-[13px] font-semibold text-accent">SEO audits, reimagined</p>
-        <h2 className="mt-3 font-display text-[36px] leading-[1.05] font-bold tracking-[-0.035em] text-main xl:text-[44px]">
+        <h2 className="text-glow mt-3 font-display text-[36px] leading-[1.05] font-bold tracking-[-0.035em] text-main xl:text-[44px]">
           Every signal your site sends.
-          <span className="block bg-gradient-to-r from-[#ff6b5f] via-[#ff2d55] to-[#9f5cf0] bg-clip-text text-transparent">
+          <span className="block bg-gradient-to-br from-main to-main/50 bg-clip-text text-transparent">
             One calm dashboard.
           </span>
         </h2>

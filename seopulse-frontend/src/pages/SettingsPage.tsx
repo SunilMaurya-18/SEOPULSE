@@ -85,7 +85,7 @@ export function SettingsPage() {
       <PageHeader title="Settings" description="Your account, team, billing, appearance and data." />
 
       <div className="widget flex items-center gap-4 p-5 sm:p-6">
-        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff8a65] via-[#f5504a] to-[#c2185b] text-xl font-semibold text-white shadow-[0_10px_24px_-10px_rgb(245_80_74/0.8)]">
+        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-accent text-xl font-semibold text-on-accent">
           {initials}
         </span>
         <div className="min-w-0">

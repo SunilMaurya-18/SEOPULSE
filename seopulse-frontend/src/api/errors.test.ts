@@ -38,4 +38,9 @@ describe('api error helpers', () => {
     expect(getErrorMessage(new Error('boom'), 'fallback')).toBe('fallback')
     expect(getErrorMessage(new AxiosError('Network Error'), 'fallback')).toMatch(/reach the server/)
   })
+
+  it('reports a non-API response as the server being unavailable', () => {
+    expect(getErrorMessage(problemError(404, 'Not Found'), 'fallback')).toMatch(/unavailable/)
+    expect(getErrorMessage(problemError(502, ''), 'fallback')).toMatch(/unavailable/)
+  })
 })

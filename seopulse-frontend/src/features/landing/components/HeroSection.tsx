@@ -21,7 +21,7 @@ export function HeroSection() {
           mode="dark"
           speed={1}
           hue={108}
-          saturation={1.2}
+          saturation={0}
           brightness={1}
           archHeight={0.85}
           thickness={1.15}
@@ -33,7 +33,7 @@ export function HeroSection() {
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-32 bg-gradient-to-b from-transparent to-[#243640]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-32 bg-gradient-to-b from-transparent to-black"
         aria-hidden
       />
 
@@ -48,15 +48,15 @@ export function HeroSection() {
             variant="threeui-intro"
             mode="dark"
             hue={0}
-            saturation={1}
+            saturation={0}
             brightness={1}
           />
         </div>
 
-        <p className="hero-rise hero-rise-3 mt-4 font-mono text-lg text-[#f2f5ea] sm:text-2xl">
+        <p className="hero-rise hero-rise-3 mt-4 font-mono text-lg text-main sm:text-2xl">
           Use data to get a 360-degree view of your site.
         </p>
-        <p className="hero-rise hero-rise-4 mt-4 max-w-[720px] font-mono text-base leading-[1.7] text-[#8b93a1] sm:text-lg">
+        <p className="hero-rise hero-rise-4 mt-4 max-w-[720px] font-mono text-base leading-[1.7] text-muted sm:text-lg">
           SEOPulse is a website audit and SEO intelligence tool. Enter any URL and it crawls every page, detects technical, content and performance issues, scores each one by severity, and turns everything into a clear, downloadable report. Track your site&apos;s health over time, find broken links, missing meta tags, slow pages and duplicate content, and know exactly what to fix first.
         </p>
 
@@ -64,7 +64,7 @@ export function HeroSection() {
           {features.map((feature) => {
             const Icon = feature.icon
             return (
-              <li key={feature.label} className="flex items-center gap-2 font-mono text-sm text-[#f2f5ea]">
+              <li key={feature.label} className="flex items-center gap-2 font-mono text-sm text-main">
                 <Icon className="h-4 w-4 text-accent" aria-hidden />
                 {feature.label}
               </li>
@@ -77,7 +77,7 @@ export function HeroSection() {
           <button
             type="button"
             onClick={() => smoothScrollTo('solutions')}
-            className="mt-4 font-mono text-sm text-[#f2f5ea]/80 underline underline-offset-4 transition hover:text-accent"
+            className="mt-4 font-mono text-sm text-main/80 underline underline-offset-4 transition hover:text-accent"
           >
             Learn more about SEOPulse
           </button>
@@ -85,7 +85,7 @@ export function HeroSection() {
 
         <ul className="hero-rise hero-rise-7 mt-8 flex flex-wrap gap-x-8 gap-y-2">
           {stats.map((stat) => (
-            <li key={stat} className="font-mono text-xs tracking-wide text-[#8b93a1]">
+            <li key={stat} className="font-mono text-xs tracking-wide text-muted">
               {stat}
             </li>
           ))}

@@ -1,0 +1,179 @@
+/*
+ * Monochrome theme (Originkit features-02 look): black canvas, grey type,
+ * white accents. Loaded after index.css and overrides its tokens in every
+ * scope. Delete this file and its import in main.tsx to restore the old theme.
+ *
+ * Tailwind maps --color-* to --sp-* at :root, and custom properties resolve
+ * where they are declared, so each scope re-declares the mappings.
+ */
+
+:root,
+.light {
+  --sp-canvas: #fafafa;
+  --sp-surface: #ffffff;
+  --sp-surface-low: #f5f5f5;
+  --sp-surface-elevated: #f0f0f1;
+  --sp-surface-high: #e4e4e7;
+  --sp-main: #0a0a0a;
+  --sp-muted: #52525b;
+  --sp-dim: #71717a;
+  --sp-border: #e4e4e7;
+  --sp-focus: #a1a1aa;
+  --sp-accent: #0a0a0a;
+  --sp-accent-hover: #27272a;
+  --sp-accent-surface: rgb(0 0 0 / 0.06);
+  --sp-on-accent: #ffffff;
+  --sp-selection: rgb(0 0 0 / 0.12);
+  --sp-text-glow: none;
+}
+
+.dark,
+.marketing {
+  --sp-canvas: #000000;
+  --sp-surface: #0a0a0b;
+  --sp-surface-low: #050505;
+  --sp-surface-elevated: #111214;
+  --sp-surface-high: #18191b;
+  --sp-main: #ffffff;
+  --sp-muted: #9297a0;
+  --sp-dim: #6b707a;
+  --sp-border: #1c1d20;
+  --sp-focus: #737373;
+  --sp-accent: #ffffff;
+  --sp-accent-hover: #d4d4d8;
+  --sp-accent-surface: rgb(255 255 255 / 0.08);
+  --sp-on-accent: #000000;
+  --sp-success: #30d158;
+  --sp-success-surface: rgb(48 209 88 / 0.12);
+  --sp-warning: #ff9f0a;
+  --sp-warning-surface: rgb(255 159 10 / 0.12);
+  --sp-critical: #ff453a;
+  --sp-critical-surface: rgb(255 69 58 / 0.12);
+  --sp-info: #64d2ff;
+  --sp-info-surface: rgb(100 210 255 / 0.12);
+  --sp-selection: rgb(255 255 255 / 0.2);
+  --sp-text-glow: 0 8px 30px rgb(255 255 255 / 0.25), 0 4px 8px rgb(255 255 255 / 0.05);
+  color-scheme: dark;
+}
+
+body.app-shell {
+  --sp-canvas: #fafafa;
+  --sp-surface: #ffffff;
+  --sp-surface-low: #fcfcfc;
+  --sp-surface-elevated: #f4f4f5;
+  --sp-surface-high: #e4e4e7;
+  --sp-main: #0a0a0a;
+  --sp-muted: #52525b;
+  --sp-dim: #71717a;
+  --sp-border: rgb(0 0 0 / 0.08);
+  --sp-focus: #a1a1aa;
+  --sp-accent: #0a0a0a;
+  --sp-accent-hover: #27272a;
+  --sp-accent-surface: rgb(0 0 0 / 0.06);
+  --sp-on-accent: #ffffff;
+  --sp-glass: rgb(255 255 255 / 0.72);
+}
+
+.dark body.app-shell {
+  --sp-canvas: #000000;
+  --sp-surface: #0a0a0b;
+  --sp-surface-low: #050505;
+  --sp-surface-elevated: #111214;
+  --sp-surface-high: #18191b;
+  --sp-main: #ffffff;
+  --sp-muted: #9297a0;
+  --sp-dim: #6b707a;
+  --sp-border: rgb(255 255 255 / 0.08);
+  --sp-focus: #737373;
+  --sp-accent: #ffffff;
+  --sp-accent-hover: #d4d4d8;
+  --sp-accent-surface: rgb(255 255 255 / 0.08);
+  --sp-on-accent: #000000;
+  --sp-glass: rgb(10 10 11 / 0.72);
+  --sp-card-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 0 0 1px rgb(255 255 255 / 0.07), 0 12px 32px -16px rgb(0 0 0 / 0.9);
+}
+
+:root,
+.light,
+.dark,
+.marketing,
+body.app-shell {
+  --color-canvas: var(--sp-canvas);
+  --color-surface: var(--sp-surface);
+  --color-surface-low: var(--sp-surface-low);
+  --color-surface-elevated: var(--sp-surface-elevated);
+  --color-surface-high: var(--sp-surface-high);
+  --color-main: var(--sp-main);
+  --color-muted: var(--sp-muted);
+  --color-dim: var(--sp-dim);
+  --color-default: var(--sp-border);
+  --color-focus: var(--sp-focus);
+  --color-accent: var(--sp-accent);
+  --color-accent-hover: var(--sp-accent-hover);
+  --color-accent-surface: var(--sp-accent-surface);
+  --color-on-accent: var(--sp-on-accent);
+  --color-success: var(--sp-success);
+  --color-success-surface: var(--sp-success-surface);
+  --color-warning: var(--sp-warning);
+  --color-warning-surface: var(--sp-warning-surface);
+  --color-critical: var(--sp-critical);
+  --color-critical-surface: var(--sp-critical-surface);
+  --color-info: var(--sp-info);
+  --color-info-surface: var(--sp-info-surface);
+
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Inter Tight", "Inter", "Segoe UI Variable Display", system-ui, sans-serif;
+  --font-mono: var(--font-sans);
+}
+
+body.app-shell,
+.marketing {
+  font-family: var(--font-sans);
+  letter-spacing: -0.006em;
+}
+
+@layer base {
+  h1,
+  h2 {
+    font-family: var(--font-display);
+  }
+}
+
+::selection {
+  background: var(--sp-selection);
+}
+
+.text-glow {
+  text-shadow: var(--sp-text-glow);
+}
+
+.app-canvas {
+  background-image: radial-gradient(ellipse 60% 40% at 50% -12%, rgb(255 255 255 / 0.06), transparent 70%);
+}
+
+:where(html:not(.dark)) .app-canvas {
+  background-image: radial-gradient(ellipse 60% 40% at 50% -12%, rgb(0 0 0 / 0.04), transparent 70%);
+}
+
+.app-dock .atd-modern__item[aria-current="page"] {
+  box-shadow: 0 10px 24px -12px rgb(255 255 255 / 0.45), inset 0 -1px rgb(0 0 0 / 0.14);
+}
+
+.app-dock .atd-modern__aurora {
+  filter: grayscale(1);
+}
+
+.app-dock__avatar {
+  color: #000;
+  background: linear-gradient(135deg, #ffffff, #a1a1aa);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.1), 0 6px 16px -8px rgb(255 255 255 / 0.5);
+}
+
+.app-dock__avatar:hover,
+.app-dock__avatar[aria-expanded="true"] {
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.25), 0 6px 16px -8px rgb(255 255 255 / 0.5);
+}
+
+.app-dock__menu {
+  background: linear-gradient(180deg, rgb(17 18 20 / 0.96), rgb(5 5 5 / 0.96));
+}

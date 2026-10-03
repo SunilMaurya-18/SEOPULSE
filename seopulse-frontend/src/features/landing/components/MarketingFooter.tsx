@@ -54,7 +54,7 @@ export function MarketingFooter() {
   }
 
   return (
-    <footer id="blog" className="scroll-mt-24 bg-black px-5 py-16 text-[#f2f5ea] md:px-[60px] md:py-20">
+    <footer id="blog" className="scroll-mt-24 bg-black px-5 py-16 text-main md:px-[60px] md:py-20">
       <div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-2">
         <div>
           <Logo />
@@ -81,7 +81,7 @@ export function MarketingFooter() {
 
         <div>
           <h2 className="font-mono text-2xl font-semibold tracking-tight">Join our mailing list</h2>
-          <p className="mt-3 max-w-md font-mono text-sm leading-relaxed text-[#f2f5ea]/85">
+          <p className="mt-3 max-w-md font-mono text-sm leading-relaxed text-main/85">
             Stay updated with our latest news and updates delivered straight to your inbox.
           </p>
           <form onSubmit={(event) => void submit(event)} className="mt-8 max-w-md space-y-5" noValidate>
@@ -100,7 +100,7 @@ export function MarketingFooter() {
                 }}
                 placeholder="Enter your email"
                 autoComplete="email"
-                className="mt-2 w-full border-0 border-b border-white/70 bg-transparent px-0 py-2 font-mono text-sm text-[#f2f5ea] outline-none placeholder:text-[#f2f5ea]/40 focus:border-accent"
+                className="mt-2 w-full border-0 border-b border-white/70 bg-transparent px-0 py-2 font-mono text-sm text-main outline-none placeholder:text-main/40 focus:border-accent"
               />
             </div>
             <label className="flex items-start gap-3 font-mono text-sm">
@@ -108,11 +108,11 @@ export function MarketingFooter() {
                 type="checkbox"
                 checked={agreed}
                 onChange={(event) => setAgreed(event.target.checked)}
-                className="mt-1 accent-[#f5504a]"
+                className="mt-1 accent-accent"
               />
               <span>
                 Yes, I agree to receive marketing emails. <span className="text-accent">*</span>
-                <span className="mt-1 block text-xs text-[#f2f5ea]/60">
+                <span className="mt-1 block text-xs text-main/60">
                   Unsubscribe anytime. See our{' '}
                   <Link to="/privacy" className="underline underline-offset-2">
                     Privacy Policy
@@ -127,7 +127,7 @@ export function MarketingFooter() {
               </p>
             )}
             {sentTo && (
-              <p role="status" className="font-mono text-sm text-[#f2f5ea]">
+              <p role="status" className="font-mono text-sm text-main">
                 Check your inbox to confirm. We sent a link to {sentTo}.
               </p>
             )}
