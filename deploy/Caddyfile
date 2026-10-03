@@ -35,7 +35,9 @@
 		header {
 			defer
 			# Third parties: Cloudflare Turnstile, Google sign-in, Razorpay Checkout.
-			Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com https://accounts.google.com/gsi/client https://checkout.razorpay.com; style-src 'self' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://cdn.razorpay.com; connect-src 'self' https://*.sentry.io https://accounts.google.com/gsi/ https://api.razorpay.com https://lumberjack.razorpay.com; frame-src https://challenges.cloudflare.com https://accounts.google.com/gsi/ https://api.razorpay.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+			# 'unsafe-inline': the landing effects run inline code in sandboxed srcdoc
+			# iframes, which inherit this policy, and Google sign-in injects inline styles.
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://accounts.google.com/gsi/client https://checkout.razorpay.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://cdn.razorpay.com; connect-src 'self' https://*.sentry.io https://accounts.google.com/gsi/ https://api.razorpay.com https://lumberjack.razorpay.com; frame-src https://challenges.cloudflare.com https://accounts.google.com/gsi/ https://api.razorpay.com https://checkout.razorpay.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
 		}
 		reverse_proxy web:8080
 	}
