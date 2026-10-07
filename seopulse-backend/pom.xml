@@ -26,7 +26,7 @@
         <tomcat.version>11.0.25</tomcat.version>
         <bucket4j.version>8.20.0</bucket4j.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
-        <sentry.version>8.58.0</sentry.version>
+        <sentry.version>8.59.0</sentry.version>
         <jacoco.version>0.8.15</jacoco.version>
         <shedlock.version>7.10.1</shedlock.version>
         <openhtmltopdf.version>1.1.87</openhtmltopdf.version>
