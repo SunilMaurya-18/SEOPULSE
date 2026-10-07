@@ -30,7 +30,7 @@
         <jacoco.version>0.8.15</jacoco.version>
         <shedlock.version>7.10.1</shedlock.version>
         <openhtmltopdf.version>1.1.87</openhtmltopdf.version>
-        <awssdk.version>2.55.9</awssdk.version>
+        <awssdk.version>2.55.11</awssdk.version>
     </properties>
 
     <dependencyManagement>
