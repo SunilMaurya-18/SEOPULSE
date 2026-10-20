@@ -1,5 +1,5 @@
 # Same major version as the database, so pg_dump/pg_restore always match.
-FROM postgres:17-alpine
+FROM postgres:18-alpine
 
 # gosu is only used by the Postgres server entrypoint, which this image never
 # runs; it drags in its own Go runtime and CVEs.
