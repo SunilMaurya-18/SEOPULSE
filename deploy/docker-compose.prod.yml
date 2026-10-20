@@ -163,7 +163,7 @@ services:
         limits: { cpus: "1.50", memory: 1536M }
 
   postgres:
-    image: postgres:17
+    image: postgres:18
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-seopulse}
