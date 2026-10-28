@@ -30,7 +30,7 @@ services:
   # Stand-in for S3 (Versity Gateway on a throwaway directory) so the backup
   # and restore scripts run end to end.
   s3:
-    image: versity/versitygw:v1.8.0
+    image: versity/versitygw:v1.10.0
     command: ["posix", "/data"]
     environment:
       ROOT_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID}
